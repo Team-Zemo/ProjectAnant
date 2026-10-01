@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { api, type StatusResponse, type GraphSnapshot, type RiskAccount, type AccountStats } from "./api/client";
 import TransactionGraph from "./components/TransactionGraph";
-import { Search, Shield, Zap, AlertTriangle, FileText, Activity, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Shield, Zap, AlertTriangle, Activity, RefreshCw } from "lucide-react";
 
 export default function App() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
@@ -15,10 +15,6 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("KKBK10000000");
   const [traceRunning, setTraceRunning] = useState(false);
   const [highlightedNodes, setHighlightedNodes] = useState<Set<string> | undefined>(undefined);
-
-  const [legalOpen, setLegalOpen] = useState(false);
-  const [legalGenerating, setLegalGenerating] = useState(false);
-  const [legalResult, setLegalResult] = useState<string | null>(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -114,20 +110,6 @@ export default function App() {
     setSelectedAccount(nodeId);
     setSearchQuery(nodeId);
     handleTrace(nodeId);
-  };
-
-  // ── Legal generation ───────────────────────────────────────────────────────
-  const handleGenerate = async (type: "fir" | "freeze") => {
-    if (!selectedAccount) return;
-    setLegalGenerating(true);
-    setLegalResult(null);
-    try {
-      const result = await api.generateLegal(selectedAccount, type);
-      setLegalResult(result.pdf_url);
-    } catch (e) {
-      console.error(e);
-    }
-    setLegalGenerating(false);
   };
 
   const riskColor = (score: number) =>
@@ -504,51 +486,6 @@ export default function App() {
                 </div>
               </div>
             )}
-
-            {/* Legal Documents (Collapsed / Optional as requested) */}
-            <div className="panel-section" style={{ borderBottom: "none" }}>
-              <div 
-                className="panel-section-title" 
-                style={{ cursor: "pointer", display: "flex", justifyContent: "space-between" }}
-                onClick={() => setLegalOpen(!legalOpen)}
-              >
-                <span><FileText size={12} style={{ display: "inline", marginRight: 4 }} />Legal Generation (Optional)</span>
-                {legalOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </div>
-              {legalOpen && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-                  <button
-                    className="btn btn-danger"
-                    style={{ justifyContent: "center" }}
-                    onClick={() => handleGenerate("freeze")}
-                    disabled={legalGenerating}
-                  >
-                    <FileText size={12} />
-                    {legalGenerating ? "Generating..." : "Section 91 Freeze Notice"}
-                  </button>
-                  <button
-                    className="btn btn-ghost"
-                    style={{ justifyContent: "center", border: "1px solid var(--border)" }}
-                    onClick={() => handleGenerate("fir")}
-                    disabled={legalGenerating}
-                  >
-                    <FileText size={12} />
-                    {legalGenerating ? "Generating..." : "Police Case Diary"}
-                  </button>
-                  {legalResult && (
-                    <a
-                      href={legalResult}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn btn-primary"
-                      style={{ justifyContent: "center" }}
-                    >
-                      Download Notice PDF
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
           </>
         ) : (
           <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>

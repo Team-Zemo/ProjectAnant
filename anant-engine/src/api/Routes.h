@@ -222,26 +222,26 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
             "WITH inflows AS ( "
             "    SELECT sender_account, receiver_account, amount, ts_unix, payment_mode, txn_id "
             "    FROM txns WHERE receiver_account = '" + sid + "' "
-            "    ORDER BY amount DESC LIMIT 20 "
+            "    ORDER BY amount DESC LIMIT 50 "
             "), "
             "hop1 AS ( "
             "    SELECT sender_account, receiver_account, amount, ts_unix, payment_mode, txn_id "
             "    FROM txns WHERE sender_account = '" + sid + "' "
-            "    ORDER BY amount DESC LIMIT 20 "
+            "    ORDER BY amount DESC LIMIT 50 "
             "), "
             "hop2 AS ( "
             "    SELECT t.sender_account, t.receiver_account, t.amount, t.ts_unix, t.payment_mode, t.txn_id "
             "    FROM txns t "
             "    WHERE t.sender_account IN (SELECT receiver_account FROM hop1) "
             "      AND t.receiver_account != '" + sid + "' "
-            "    ORDER BY t.amount DESC LIMIT 25 "
+            "    ORDER BY t.amount DESC LIMIT 200 "
             "), "
             "hop3 AS ( "
             "    SELECT t.sender_account, t.receiver_account, t.amount, t.ts_unix, t.payment_mode, t.txn_id "
             "    FROM txns t "
             "    WHERE t.sender_account IN (SELECT receiver_account FROM hop2) "
             "      AND t.receiver_account != '" + sid + "' "
-            "    ORDER BY t.amount DESC LIMIT 25 "
+            "    ORDER BY t.amount DESC LIMIT 200 "
             "), "
             "all_hops AS ( "
             "    SELECT * FROM inflows "
@@ -256,16 +256,16 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
         // 2. Trace nodes (Inflow Senders + Target Account + Downstream Receivers)
         std::string nodes_json = state.duck->query_json(
             "WITH inflows AS ( "
-            "    SELECT sender_account AS acct FROM txns WHERE receiver_account = '" + sid + "' ORDER BY amount DESC LIMIT 20 "
+            "    SELECT sender_account AS acct FROM txns WHERE receiver_account = '" + sid + "' ORDER BY amount DESC LIMIT 50 "
             "), "
             "hop1 AS ( "
-            "    SELECT receiver_account AS acct FROM txns WHERE sender_account = '" + sid + "' ORDER BY amount DESC LIMIT 20 "
+            "    SELECT receiver_account AS acct FROM txns WHERE sender_account = '" + sid + "' ORDER BY amount DESC LIMIT 50 "
             "), "
             "hop2 AS ( "
-            "    SELECT receiver_account AS acct FROM txns WHERE sender_account IN (SELECT acct FROM hop1) AND receiver_account != '" + sid + "' ORDER BY amount DESC LIMIT 25 "
+            "    SELECT receiver_account AS acct FROM txns WHERE sender_account IN (SELECT acct FROM hop1) AND receiver_account != '" + sid + "' ORDER BY amount DESC LIMIT 200 "
             "), "
             "hop3 AS ( "
-            "    SELECT receiver_account AS acct FROM txns WHERE sender_account IN (SELECT acct FROM hop2) AND receiver_account != '" + sid + "' ORDER BY amount DESC LIMIT 25 "
+            "    SELECT receiver_account AS acct FROM txns WHERE sender_account IN (SELECT acct FROM hop2) AND receiver_account != '" + sid + "' ORDER BY amount DESC LIMIT 200 "
             "), "
             "all_nodes AS ( "
             "    SELECT '" + sid + "' AS id "
@@ -380,37 +380,6 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
 
         std::string res = "{\"ring_center\":\"" + id + "\",\"nodes\":" + nodes + ",\"edges\":" + edges + "}";
         ctx.res().json(res);
-    });
-
-    // ── POST /api/ai/generate — build verified-fact payload ───────────────────
-    router.post("/api/ai/generate", [&state](aegon::http::Context& ctx) {
-        auto body = std::string(ctx.req().body());
-        auto acct = extract_json_string(body, "account_id");
-        if (acct.empty()) {
-            ctx.res().status(aegon::http::StatusCode::BadRequest)
-               .json(std::string_view{"{\"error\":\"account_id required\"}"});
-            return;
-        }
-
-        auto stats = state.duck->account_stats(acct);
-        std::string sid;
-        for (char c : acct) { if (c=='\'') sid += "''"; else sid += c; }
-
-        auto txns = state.duck->query_json(
-            "SELECT txn_id, sender_account, receiver_account, amount, ts_unix, "
-            "       payment_mode, narration, sender_bank, receiver_bank "
-            "FROM txns WHERE sender_account = '" + sid + "' OR receiver_account = '" + sid + "' "
-            "ORDER BY ts_unix LIMIT 100");
-
-        std::ostringstream facts;
-        facts << "{\"subject_account\":\"" << acct << "\","
-              << "\"bank\":\"" << stats.bank << "\","
-              << "\"total_in\":" << stats.total_in << ","
-              << "\"total_out\":" << stats.total_out << ","
-              << "\"tx_count\":" << stats.tx_count << ","
-              << "\"mule_score\":" << stats.mule_score << ","
-              << "\"transactions\":" << txns << "}";
-        ctx.res().json(facts.str());
     });
 }
 

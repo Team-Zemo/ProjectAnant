@@ -141,10 +141,4 @@ export const api = {
   ring: (account_id: string) => apiFetch<GraphSnapshot>(`/api/graph/ring/${encodeURIComponent(account_id)}`),
 
   topRisk: (n = 50) => apiFetch<RiskAccount[]>(`/api/top-risk?n=${n}`),
-
-  generateLegal: (account_id: string, type: "fir" | "freeze") =>
-    apiFetch<{ pdf_url: string; narrative: string }>("/api/ai/legal", {
-      method: "POST",
-      body: JSON.stringify({ account_id, type }),
-    }),
 };

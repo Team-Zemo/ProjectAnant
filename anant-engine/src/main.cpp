@@ -4,12 +4,14 @@
 #include "api/Routes.h"
 #include <iostream>
 #include <csignal>
+#include <filesystem>
 
 int main(int argc, char* argv[]) {
     std::string memgraph_host = "127.0.0.1";
     uint16_t    memgraph_port = 7687;
-    uint16_t    listen_port   = 8080;
+    uint16_t    listen_port   = 3000;
     int         worker_threads = 8;
+    std::string static_dir    = "anant-dashboard/dist";
 
     // Simple arg parsing
     for (int i = 1; i < argc - 1; i++) {
@@ -18,6 +20,16 @@ int main(int argc, char* argv[]) {
         if (arg == "--memgraph-port") memgraph_port = static_cast<uint16_t>(std::stoi(argv[++i]));
         if (arg == "--port")          listen_port   = static_cast<uint16_t>(std::stoi(argv[++i]));
         if (arg == "--threads")       worker_threads = std::stoi(argv[++i]);
+        if (arg == "--static-dir")    static_dir    = argv[++i];
+    }
+
+    // Resolve static dashboard directory if relative
+    if (!std::filesystem::exists(static_dir)) {
+        if (std::filesystem::exists("../anant-dashboard/dist")) {
+            static_dir = "../anant-dashboard/dist";
+        } else if (std::filesystem::exists("/home/surendra/IdeaProjects/ProjectAnant/anant-dashboard/dist")) {
+            static_dir = "/home/surendra/IdeaProjects/ProjectAnant/anant-dashboard/dist";
+        }
     }
 
     std::cout << "╔══════════════════════════════════════════╗\n"
@@ -26,7 +38,13 @@ int main(int argc, char* argv[]) {
               << "╚══════════════════════════════════════════╝\n\n"
               << "  Aegon HTTP/2 server on :" << listen_port << "\n"
               << "  Memgraph at "             << memgraph_host << ":" << memgraph_port << "\n"
-              << "  Worker threads: "         << worker_threads << "\n\n";
+              << "  Worker threads: "         << worker_threads << "\n";
+
+    if (std::filesystem::exists(static_dir)) {
+        std::cout << "  Serving dashboard from:   " << static_dir << "\n\n";
+    } else {
+        std::cerr << "  [WARN] Dashboard dist directory not found at " << static_dir << "\n\n";
+    }
 
     // Initialize shared application state
     anant::api::AppState state(memgraph_host, memgraph_port);
@@ -46,11 +64,13 @@ int main(int argc, char* argv[]) {
     server.router().use(aegon::http::middleware::security_headers(aegon::http::middleware::SecurityHeadersConfig::defaults()));
 
     // Serve React Dashboard directly via Aegon static files server
-    server.router().static_files("/", "/home/surendra/IdeaProjects/ProjectAnant/anant-bun/static", aegon::http::StaticFilesOptions{
-        .precompressed = false,
-        .cache_in_memory = true,
-        .index_file = "index.html"
-    });
+    if (std::filesystem::exists(static_dir)) {
+        server.router().static_files("/", static_dir, aegon::http::StaticFilesOptions{
+            .precompressed = false,
+            .cache_in_memory = true,
+            .index_file = "index.html"
+        });
+    }
 
     // Register all routes
     anant::api::register_routes(server, state);
@@ -62,7 +82,7 @@ int main(int argc, char* argv[]) {
     });
 
     std::cout << "[Anant] Ready. POST /api/ingest to start the pipeline.\n"
-              << "[Anant] Dashboard: http://localhost:3000\n\n";
+              << "[Anant] Dashboard & API: http://localhost:" << listen_port << "\n\n";
 
     server.listen(listen_port).run(worker_threads);
     return 0;

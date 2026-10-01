@@ -59,8 +59,6 @@ node_modules/
 **/node_modules/
 dist/
 **/dist/
-anant-bun/static/*
-!anant-bun/static/.gitkeep
 .npm/
 .bun/
 .vite/
