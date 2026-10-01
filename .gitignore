@@ -1,0 +1,108 @@
+# ==============================================================================
+# Project Anant — .gitignore
+# High-Performance Mule Account Detection & Transaction Graph Engine
+# ==============================================================================
+
+# ── Datasets & Large Data Files ──────────────────────────────────────────────
+*.csv
+*.tsv
+*.parquet
+*.arrow
+*.duckdb
+*.duckdb.wal
+*.db
+*.sqlite
+*.sqlite3
+VoidHacks8_MuleAccount_2M_Transactions.csv
+
+# ── AI / ML Models & Weights ──────────────────────────────────────────────────
+models/*
+!models/.gitkeep
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+
+# ── C++ / CMake / Compiler Artifacts ─────────────────────────────────────────
+build/
+**/build/
+build_test/
+**/build_test/
+cmake-build-*/
+**/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+CMakeScripts/
+cmake_install.cmake
+Makefile
+compile_commands.json
+*.o
+*.obj
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+**/bin/
+**/target/
+**/upstream/
+**/.zig-cache/
+**/zig-out/
+**/bench_fiber/
+
+# ── Node.js / Bun / Frontend Build Artifacts ──────────────────────────────────
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+anant-bun/static/*
+!anant-bun/static/.gitkeep
+.npm/
+.bun/
+.vite/
+.eslintcache
+.parcel-cache
+
+# ── Runtime Temp Files, Logs & PID Files ──────────────────────────────────────
+*.log
+logs/
+*.pid
+*.seed
+*.tmp
+/tmp/
+scratch/
+**/reports/
+**/settle-failures.jsonl
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# ── Legal Notice PDFs (Runtime Outputs) ───────────────────────────────────────
+*.pdf
+!Docs/*.pdf
+
+# ── Docker, Database & In-Memory Data Volumes ─────────────────────────────────
+memgraph_data/
+data/
+*.rdb
+dump.rdb
+
+# ── Environment & Secret Files ────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ── IDEs & Operating System Artifacts ─────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

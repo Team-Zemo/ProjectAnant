@@ -1,0 +1,27 @@
+# freeze_notice.gbnf
+# GBNF grammar for Section 91 CrPC Bank Freeze Requisition
+# This grammar enforces the JSON structure at the llama.cpp LOGIT level.
+# The model CANNOT generate tokens that violate this grammar.
+
+root ::= freeze-object
+
+freeze-object ::= "{" ws
+    "\"document_type\":" ws "\"SECTION_91_FREEZE_REQUISITION\"" ws "," ws
+    "\"narrative_summary\":" ws narrative-text ws "," ws
+    "\"legal_basis\":" ws legal-basis-string ws "," ws
+    "\"urgency_level\":" ws urgency ws "," ws
+    "\"investigation_nature\":" ws investigation-text ws
+    "}" ws
+
+# Narrative: free prose BUT account numbers are NOT allowed (no 12-digit sequences)
+# The model writes legal narrative without raw data fields
+narrative-text ::= "\"" narrative-chars "\""
+narrative-chars ::= ( [^"\\\n] | "\\" ["\\/bfnrt] )*
+
+legal-basis-string ::= "\"" ( "Section 91 CrPC" | "Section 91 BNSS" | "Section 91 CrPC / BNSS" ) "\""
+
+urgency ::= "\"HIGH\"" | "\"CRITICAL\"" | "\"MEDIUM\""
+
+investigation-text ::= "\"" narrative-chars "\""
+
+ws ::= [ \t\n]*
