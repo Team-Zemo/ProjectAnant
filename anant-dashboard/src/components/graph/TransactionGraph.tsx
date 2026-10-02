@@ -508,11 +508,11 @@ export default function TransactionGraph({
   return (
     <div className="w-full h-full relative overflow-hidden bg-transparent">
       {/* Floating Canvas Controls with OKLCH card styling */}
-      <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-20">
+      <div className="absolute top-4 right-4 flex flex-col gap-1.5 z-20">
         <button
           title={isPhysicsRunning ? "Pause Live Floating Simulation" : "Start Live Floating Simulation"}
           onClick={toggleLivePhysics}
-          className={`p-2.5 rounded-xl border backdrop-blur-md transition-all shadow-md cursor-pointer ${
+          className={`p-2 rounded-xl border backdrop-blur-md transition-all shadow-md cursor-pointer ${
             isPhysicsRunning
               ? "bg-primary text-primary-foreground border-primary shadow-primary/30"
               : "bg-card/90 text-foreground border-border hover:bg-muted"
@@ -523,28 +523,28 @@ export default function TransactionGraph({
         <button
           title="Float / Re-Relax Physics Layout"
           onClick={relaxGraphOnce}
-          className="p-2.5 rounded-xl border border-border bg-card/90 backdrop-blur-md text-foreground hover:bg-muted transition-all shadow-md cursor-pointer"
+          className="p-2 rounded-xl border border-border bg-card/90 backdrop-blur-md text-foreground hover:bg-muted transition-all shadow-md cursor-pointer"
         >
           <Compass className="w-4 h-4" />
         </button>
         <button
           title="Zoom In"
           onClick={() => sigmaRef.current?.getCamera().animatedZoom({ factor: 1.4, duration: 250 })}
-          className="p-2.5 rounded-xl border border-border bg-card/90 backdrop-blur-md text-foreground hover:bg-muted transition-all shadow-md cursor-pointer"
+          className="p-2 rounded-xl border border-border bg-card/90 backdrop-blur-md text-foreground hover:bg-muted transition-all shadow-md cursor-pointer"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
         <button
           title="Zoom Out"
           onClick={() => sigmaRef.current?.getCamera().animatedUnzoom({ factor: 1.4, duration: 250 })}
-          className="p-2.5 rounded-xl border border-border bg-card/90 backdrop-blur-md text-foreground hover:bg-muted transition-all shadow-md cursor-pointer"
+          className="p-2 rounded-xl border border-border bg-card/90 backdrop-blur-md text-foreground hover:bg-muted transition-all shadow-md cursor-pointer"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
         <button
           title="Reset Camera View"
           onClick={() => sigmaRef.current?.getCamera().animatedReset({ duration: 400 })}
-          className="p-2.5 rounded-xl border border-border bg-card/90 backdrop-blur-md text-foreground hover:bg-muted transition-all shadow-md cursor-pointer"
+          className="p-2 rounded-xl border border-border bg-card/90 backdrop-blur-md text-foreground hover:bg-muted transition-all shadow-md cursor-pointer"
         >
           <Maximize2 className="w-4 h-4" />
         </button>

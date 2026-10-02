@@ -11,6 +11,8 @@ import {
   Sparkles,
   Eye,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import type { GraphEdge, GraphNode } from "../../api/client";
 
@@ -30,6 +32,7 @@ export const TemporalPlaybackSlider: React.FC<TemporalPlaybackSliderProps> = ({
   sourceAccount,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState<number>(5); // 1x, 5x, 20x, 60x
   const animFrameRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(Date.now());
@@ -193,6 +196,26 @@ export const TemporalPlaybackSlider: React.FC<TemporalPlaybackSliderProps> = ({
     onTimestampChange(next >= maxTs ? null : next);
   };
 
+  if (isCollapsed) {
+    return (
+      <div className="absolute bottom-3 left-3 z-20 pointer-events-auto">
+        <button
+          onClick={() => setIsCollapsed(false)}
+          className="px-3 py-2 rounded-xl bg-card/95 hover:bg-card backdrop-blur-xl border border-border shadow-xl text-xs font-mono font-semibold flex items-center gap-2.5 transition-all text-foreground cursor-pointer group"
+          title="Expand Temporal Propagation Slider"
+        >
+          <div className="p-1 rounded-md bg-primary/15 text-primary group-hover:scale-105 transition-transform">
+            <Clock className="w-3.5 h-3.5 animate-pulse" />
+          </div>
+          <span>Temporal Scrubber</span>
+          <span className="text-primary font-bold">{formatRelativeTime(activeTs)}</span>
+          <span className="text-muted-foreground text-[10px]">({stats.progressPct.toFixed(0)}%)</span>
+          <ChevronUp className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="absolute bottom-3 left-3 right-3 z-20 pointer-events-auto">
       <div className="rounded-2xl bg-card/90 hover:bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl p-3 sm:p-4 space-y-3 transition-all duration-300">
@@ -225,8 +248,8 @@ export const TemporalPlaybackSlider: React.FC<TemporalPlaybackSliderProps> = ({
             </div>
           </div>
 
-          {/* Running Propagation Stats */}
-          <div className="flex items-center gap-4 text-xs font-mono">
+          {/* Running Propagation Stats & Controls */}
+          <div className="flex items-center gap-3 text-xs font-mono">
             <div className="hidden sm:block text-right">
               <div className="text-[10px] uppercase text-muted-foreground">Volume Laundered</div>
               <div className="font-bold text-emerald-400">
@@ -261,6 +284,15 @@ export const TemporalPlaybackSlider: React.FC<TemporalPlaybackSliderProps> = ({
                 <span>Start Replay</span>
               </button>
             )}
+
+            {/* Minimize / Collapse Button */}
+            <button
+              onClick={() => setIsCollapsed(true)}
+              className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all cursor-pointer border border-transparent hover:border-border/60"
+              title="Minimize Temporal Scrubber"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
