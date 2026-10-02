@@ -83,6 +83,13 @@ export default function TransactionGraph({
   };
 
   useEffect(() => {
+    // Reset live physics simulation state whenever graph data or target account changes
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    setIsPhysicsRunning(false);
+
     if (!containerRef.current || nodes.length === 0) return;
 
     // Create graphology directed multi-graph
@@ -289,13 +296,13 @@ export default function TransactionGraph({
       zoomToSizeRatioFunction: (x) => Math.sqrt(x),
       labelFont: "JetBrains Mono, monospace",
       labelSize: 11,
-      labelColor: { color: "#f8fafc" },
+      labelColor: { color: "#ffffff" },
       labelDensity: 0.8,
       labelGridCellSize: 50,
       defaultEdgeColor: "rgba(56, 189, 248, 0.5)",
       edgeLabelFont: "Plus Jakarta Sans, sans-serif",
       edgeLabelSize: 9,
-      edgeLabelColor: { color: "#cbd5e1" },
+      edgeLabelColor: { color: "#e2e8f0" },
     });
 
     // 6. INTERACTIVE NODE DRAGGING
@@ -338,7 +345,10 @@ export default function TransactionGraph({
     sigmaRef.current = sigma;
 
     return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
       sigma.kill();
       sigmaRef.current = null;
     };
@@ -353,6 +363,10 @@ export default function TransactionGraph({
     const targetId = sourceAccount || (nodes[0]?.id ?? nodes[0]?.["a.id"] ?? nodes[0]?.account_id ?? "");
 
     if (nextState) {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
       const step = () => {
         if (!graphRef.current) return;
         try {
@@ -410,7 +424,7 @@ export default function TransactionGraph({
       neighbors.add(hoveredNode);
       sigmaRef.current.setSetting("nodeReducer", (node, data) => ({
         ...data,
-        color: neighbors.has(node) ? data.color : "#1e293b",
+        color: neighbors.has(node) ? data.color : "#0f172a",
         size:  neighbors.has(node) ? data.size * 1.25 : data.size * 0.45,
         label: neighbors.has(node) ? data.label : "",
       }));
@@ -419,7 +433,7 @@ export default function TransactionGraph({
         const active = neighbors.has(src) && neighbors.has(tgt);
         return {
           ...data,
-          color: active ? "rgba(16, 185, 129, 0.95)" : "rgba(148, 163, 184, 0.06)",
+          color: active ? "rgba(16, 185, 129, 0.95)" : "rgba(148, 163, 184, 0.05)",
           size: active ? 3.0 : 0.5,
           hidden: !active,
         };
@@ -433,7 +447,7 @@ export default function TransactionGraph({
   }, [hoveredNode]);
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-background/50 rounded-2xl border border-border">
+    <div className="w-full h-full relative overflow-hidden bg-transparent">
       {/* Floating Canvas Controls with OKLCH card styling */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-20">
         <button

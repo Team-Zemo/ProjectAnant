@@ -235,6 +235,32 @@
   border: 1px solid color-mix(in oklab, #38bdf8 40%, transparent);
 }
 
+/* Darker Graph Studio Canvas Background */
+.graph-studio-canvas {
+  background-color: #030611 !important;
+  background-image:
+    radial-gradient(ellipse 90% 90% at 50% 50%, rgba(15, 23, 42, 0.6) 0%, transparent 100%),
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
+}
+
+/* Graph transition blur & unblur states */
+.graph-canvas-blurred {
+  filter: blur(10px) brightness(0.65);
+  opacity: 0.45;
+  transform: scale(0.99);
+  transition: filter 350ms cubic-bezier(0.16, 1, 0.3, 1), opacity 350ms cubic-bezier(0.16, 1, 0.3, 1), transform 350ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.graph-canvas-clear {
+  filter: blur(0px) brightness(1);
+  opacity: 1;
+  transform: scale(1);
+  transition: filter 350ms cubic-bezier(0.16, 1, 0.3, 1), opacity 350ms cubic-bezier(0.16, 1, 0.3, 1), transform 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .01ms !important;

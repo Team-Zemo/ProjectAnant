@@ -5,11 +5,12 @@ export const ThemeToggle: React.FC = () => {
   const [isDark, setIsDark] = useState<boolean>(true);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("app-theme") || "dark";
-    const isDarkMode = savedTheme === "dark";
+    const savedTheme = localStorage.getItem("app-theme");
+    const isDarkMode = savedTheme ? savedTheme === "dark" : true;
     setIsDark(isDarkMode);
     if (isDarkMode) {
       document.documentElement.classList.add("dark");
+      if (!savedTheme) localStorage.setItem("app-theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
     }

@@ -15,7 +15,7 @@ import { PipelineView } from "./features/pipeline/PipelineView";
 import { SystemHealthView } from "./features/system/SystemHealthView";
 import { QuickTraceModal } from "./components/modals/QuickTraceModal";
 import { IngestModal } from "./components/modals/IngestModal";
-import type { NavTabId } from "./types";
+import type { NavTabId, TraceMode } from "./types";
 
 export default function App() {
   // Navigation & UI state
@@ -30,6 +30,7 @@ export default function App() {
   const [ingestPct, setIngestPct] = useState(0);
 
   // Graph and investigation data state
+  const [traceMode, setTraceMode] = useState<TraceMode>("trail");
   const [trailGraph, setTrailGraph] = useState<GraphSnapshot>({ nodes: [], edges: [] });
   const [topRisk, setTopRisk] = useState<RiskAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
@@ -40,13 +41,15 @@ export default function App() {
 
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  // ── Trace 4-Hop Money Trail ────────────────────────────────────────────────
+  // ── Trace 4-Hop Money Trail with smooth transition ─────────────────────────
   const handleTrace = useCallback(async (targetAccount?: string) => {
     const acct = (targetAccount || searchQuery).trim();
     if (!acct) return;
+    setTraceMode("trail");
     setTraceRunning(true);
     setSelectedAccount(acct);
     setSearchQuery(acct);
+    const startTime = Date.now();
 
     try {
       const [result, detail] = await Promise.all([
@@ -65,17 +68,23 @@ export default function App() {
     } catch (e) {
       console.error("Trace failed:", e);
     } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 280) {
+        await new Promise((r) => setTimeout(r, 280 - elapsed));
+      }
       setTraceRunning(false);
     }
   }, [searchQuery]);
 
-  // ── 2-Hop Direct Ring Neighborhood ──────────────────────────────────────────
+  // ── 2-Hop Direct Ring Neighborhood with smooth transition ───────────────────
   const handleRingTrace = useCallback(async (targetAccount: string) => {
     const acct = targetAccount.trim();
     if (!acct) return;
+    setTraceMode("ring");
     setTraceRunning(true);
     setSelectedAccount(acct);
     setSearchQuery(acct);
+    const startTime = Date.now();
 
     try {
       const [ringData, detail] = await Promise.all([
@@ -94,13 +103,20 @@ export default function App() {
     } catch (e) {
       console.error("Ring trace failed:", e);
     } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 280) {
+        await new Promise((r) => setTimeout(r, 280 - elapsed));
+      }
       setTraceRunning(false);
     }
   }, []);
 
-  // ── Global High-Risk Cluster Snapshot ───────────────────────────────────────
+  // ── Global High-Risk Cluster Snapshot with smooth transition ────────────────
   const handleSnapshotTrace = useCallback(async () => {
+    setTraceMode("snapshot");
     setTraceRunning(true);
+    const startTime = Date.now();
+
     try {
       const snap = await api.snapshot(300);
       if (snap && snap.nodes) {
@@ -110,9 +126,29 @@ export default function App() {
     } catch (e) {
       console.error("Snapshot load failed:", e);
     } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 280) {
+        await new Promise((r) => setTimeout(r, 280 - elapsed));
+      }
       setTraceRunning(false);
     }
   }, []);
+
+  // ── Tab Switching Navigation Handler ───────────────────────────────────────
+  const handleNavigateTab = useCallback((tab: NavTabId) => {
+    if (tab === "investigation" && activeTab !== "investigation") {
+      // When navigating back into Graph Studio from another section,
+      // revert by default to 4-hop money trail and re-trace active account
+      if (traceMode !== "trail") {
+        setTraceMode("trail");
+        const target = selectedAccount || searchQuery || (topRisk.length > 0 ? topRisk[0].account_id : "");
+        if (target) {
+          handleTrace(target);
+        }
+      }
+    }
+    setActiveTab(tab);
+  }, [activeTab, traceMode, selectedAccount, searchQuery, topRisk, handleTrace]);
 
   // ── Node click → trace that account & update detail ─────────────────────────
   const handleNodeClick = (nodeId: string) => {
@@ -158,7 +194,6 @@ export default function App() {
         if (pct >= 100) {
           es.close();
           setIngestRunning(false);
-          // Auto trace highest risk mule account on ingest finish
           fetchTopRisk().then((risk) => {
             if (risk && risk.length > 0) {
               const topAcct = risk[0].account_id;
@@ -243,13 +278,13 @@ export default function App() {
         {/* Module Sidebar */}
         <Sidebar
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleNavigateTab}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           topRiskCount={topRisk.length}
           selectedAccount={selectedAccount}
           onTraceAccount={(acct) => {
-            setActiveTab("investigation");
+            handleNavigateTab("investigation");
             handleTrace(acct);
           }}
         />
@@ -266,10 +301,10 @@ export default function App() {
               status={status}
               topRisk={topRisk}
               onTraceAccount={(acct) => {
-                setActiveTab("investigation");
+                handleNavigateTab("investigation");
                 handleTrace(acct);
               }}
-              onNavigateTab={setActiveTab}
+              onNavigateTab={handleNavigateTab}
               onOpenIngest={() => setIngestModalOpen(true)}
               isReady={isReady}
             />
@@ -283,6 +318,8 @@ export default function App() {
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               traceRunning={traceRunning}
+              traceMode={traceMode}
+              setTraceMode={setTraceMode}
               onTrace={handleTrace}
               onRingTrace={handleRingTrace}
               onSnapshotTrace={handleSnapshotTrace}
@@ -302,10 +339,10 @@ export default function App() {
             <MuleRegistryView
               topRisk={topRisk}
               onTraceAccount={(acct) => {
-                setActiveTab("investigation");
+                handleNavigateTab("investigation");
                 handleTrace(acct);
               }}
-              onNavigateTab={setActiveTab}
+              onNavigateTab={handleNavigateTab}
               onRefreshTopRisk={fetchTopRisk}
               isReady={isReady}
             />
@@ -333,7 +370,7 @@ export default function App() {
         isOpen={quickTraceOpen}
         onClose={() => setQuickTraceOpen(false)}
         onTrace={(acct) => {
-          setActiveTab("investigation");
+          handleNavigateTab("investigation");
           handleTrace(acct);
         }}
         topRiskAccounts={topRisk}

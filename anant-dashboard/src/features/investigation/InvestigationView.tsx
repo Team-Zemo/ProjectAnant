@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Search,
   Activity,
@@ -9,6 +9,7 @@ import {
   PanelRightOpen,
   Sparkles,
   Zap,
+  Loader2,
 } from "lucide-react";
 import TransactionGraph from "../../components/graph/TransactionGraph";
 import { AccountInspector } from "./AccountInspector";
@@ -26,6 +27,8 @@ interface InvestigationViewProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   traceRunning: boolean;
+  traceMode: TraceMode;
+  setTraceMode: (mode: TraceMode) => void;
   onTrace: (targetAccount?: string) => void;
   onRingTrace: (targetAccount: string) => void;
   onSnapshotTrace: () => void;
@@ -43,6 +46,8 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
   searchQuery,
   setSearchQuery,
   traceRunning,
+  traceMode,
+  setTraceMode,
   onTrace,
   onRingTrace,
   onSnapshotTrace,
@@ -53,12 +58,19 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
   onCloseDetail,
 }) => {
   const [inspectorOpen, setInspectorOpen] = useState(true);
-  const [currentMode, setCurrentMode] = useState<TraceMode>("trail");
+
+  // When mounting/entering Graph Studio, ensure default view returns to 4-hop trail
+  useEffect(() => {
+    if (traceMode !== "trail") {
+      setTraceMode("trail");
+      onTrace(selectedAccount || searchQuery);
+    }
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      setCurrentMode("trail");
+      setTraceMode("trail");
       onTrace(searchQuery.trim());
     }
   };
@@ -66,13 +78,13 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
   const handleRingClick = () => {
     const acct = (selectedAccount || searchQuery).trim();
     if (acct) {
-      setCurrentMode("ring");
+      setTraceMode("ring");
       onRingTrace(acct);
     }
   };
 
   const handleSnapshotClick = () => {
-    setCurrentMode("snapshot");
+    setTraceMode("snapshot");
     onSnapshotTrace();
   };
 
@@ -108,12 +120,12 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
           <div className="p-1 rounded-xl bg-background border border-border flex items-center gap-1">
             <button
               onClick={() => {
-                setCurrentMode("trail");
+                setTraceMode("trail");
                 onTrace();
               }}
-              disabled={!isReady}
+              disabled={!isReady || traceRunning}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold font-sans transition-all cursor-pointer ${
-                currentMode === "trail"
+                traceMode === "trail"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
@@ -122,9 +134,9 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
             </button>
             <button
               onClick={handleRingClick}
-              disabled={!isReady || (!selectedAccount && !searchQuery)}
+              disabled={!isReady || traceRunning || (!selectedAccount && !searchQuery)}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold font-sans transition-all cursor-pointer ${
-                currentMode === "ring"
+                traceMode === "ring"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground disabled:opacity-40"
               }`}
@@ -134,9 +146,9 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
             </button>
             <button
               onClick={handleSnapshotClick}
-              disabled={!isReady}
+              disabled={!isReady || traceRunning}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold font-sans transition-all cursor-pointer ${
-                currentMode === "snapshot"
+                traceMode === "snapshot"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
@@ -174,61 +186,60 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
 
       {/* Main Graph Area & Collapsible Inspector Split */}
       <div className="flex-1 flex overflow-hidden gap-3 relative rounded-2xl">
-        {/* Left: Graph Canvas with floating legend */}
-        <div className="flex-1 relative h-full rounded-2xl overflow-hidden border border-border bg-card shadow-sm">
-          {/* Graph Legend Overlay */}
-          {/* <div className="absolute top-3 left-3 z-10 p-2.5 rounded-xl bg-card/90 backdrop-blur-md border border-border shadow-md flex items-center gap-3 text-[11px] font-mono">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]" />
-              <span className="text-muted-foreground">Inflows</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
-              <span className="text-muted-foreground">L1 Collector</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
-              <span className="text-muted-foreground">L2 Distributor</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#a855f7]" />
-              <span className="text-muted-foreground">L3 Terminal</span>
-            </div>
-          </div> */}
-
-          {/* Empty / Unloaded Canvas Prompt */}
-          {trailGraph.nodes.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center gap-3 text-center p-8 graph-grid">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-2">
-                <GitBranch className="w-8 h-8" />
+        {/* Left: Graph Canvas with Darker Background & Blur Transition */}
+        <div className="flex-1 relative h-full rounded-2xl overflow-hidden border border-border/80 graph-studio-canvas shadow-inner">
+          {/* Smooth Blur Wrapper for the Graph Canvas */}
+          <div
+            className={`w-full h-full ${
+              traceRunning ? "graph-canvas-blurred" : "graph-canvas-clear"
+            }`}
+          >
+            {/* Empty / Unloaded Canvas Prompt */}
+            {trailGraph.nodes.length === 0 && (
+              <div className="h-full flex flex-col items-center justify-center gap-3 text-center p-8">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-2">
+                  <GitBranch className="w-8 h-8" />
+                </div>
+                <h3 className="text-base font-extrabold text-foreground font-sans">
+                  Interactive Money Trail Visualizer
+                </h3>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  Enter an account number above or trace the top suspect account to visualize up to 4 hops of funds flow.
+                </p>
+                {isReady && topRisk.length > 0 && (
+                  <button
+                    onClick={() => onTrace(topRisk[0].account_id)}
+                    className="mt-2 btn btn-sm rounded-xl font-bold bg-primary text-primary-foreground hover:opacity-90 flex items-center gap-1.5 shadow-md shadow-primary/20 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Trace Top Risk Account ({topRisk[0].account_id})</span>
+                  </button>
+                )}
               </div>
-              <h3 className="text-base font-extrabold text-foreground font-sans">
-                Interactive Money Trail Visualizer
-              </h3>
-              <p className="text-xs text-muted-foreground max-w-sm">
-                Enter an account number above or trace the top suspect account to visualize up to 4 hops of funds flow.
-              </p>
-              {isReady && topRisk.length > 0 && (
-                <button
-                  onClick={() => onTrace(topRisk[0].account_id)}
-                  className="mt-2 btn btn-sm rounded-xl font-bold bg-primary text-primary-foreground hover:opacity-90 flex items-center gap-1.5 shadow-md shadow-primary/20 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Trace Top Risk Account ({topRisk[0].account_id})</span>
-                </button>
-              )}
-            </div>
-          )}
+            )}
 
-          {/* Sigma.js Graph Canvas */}
-          {trailGraph.nodes.length > 0 && (
-            <TransactionGraph
-              nodes={trailGraph.nodes}
-              edges={trailGraph.edges}
-              onNodeClick={onNodeClick}
-              highlightedNodes={highlightedNodes}
-              sourceAccount={selectedAccount}
-            />
+            {/* Sigma.js Graph Canvas */}
+            {trailGraph.nodes.length > 0 && (
+              <TransactionGraph
+                nodes={trailGraph.nodes}
+                edges={trailGraph.edges}
+                onNodeClick={onNodeClick}
+                highlightedNodes={highlightedNodes}
+                sourceAccount={selectedAccount}
+              />
+            )}
+          </div>
+
+          {/* Minimalist Loading Indicator when Switching Views (No Text) */}
+          {traceRunning && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+              <div className="p-3.5 rounded-2xl bg-card/85 backdrop-blur-xl border border-primary/30 shadow-2xl flex items-center justify-center">
+                <div className="relative flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                  <Activity className="w-4 h-4 text-primary absolute animate-pulse" />
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
