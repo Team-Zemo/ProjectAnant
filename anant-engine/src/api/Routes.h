@@ -37,6 +37,7 @@ struct AppState {
     std::string           current_stage{"Idle"};
     std::string           stage_message{"Ready for Ingestion"};
     std::atomic<uint64_t> ingest_elapsed_ms{0};
+    std::chrono::steady_clock::time_point ingest_t0;
     std::atomic<uint64_t> duck_time_ms{0};
     std::atomic<uint64_t> score_time_ms{0};
     std::atomic<uint64_t> syn_time_ms{0};
@@ -49,6 +50,7 @@ struct AppState {
         graph              = std::make_unique<graph::GraphEngine>(memgraph_host, memgraph_port);
         scorer             = std::make_unique<graph::MuleScorer>(*duck, *graph);
         syndicate_detector = std::make_unique<graph::SyndicateDetector>(*duck, *graph);
+        ingest_t0          = std::chrono::steady_clock::now();
     }
 };
 
@@ -156,8 +158,10 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
             state.duck->exec("DROP TABLE IF EXISTS txns");
             state.duck->exec("DROP TABLE IF EXISTS syndicates");
             state.duck->exec("DROP VIEW IF EXISTS edges");
-            state.duck->stats().rows_loaded.store(0);
-            state.duck->stats().unique_accounts.store(0);
+            state.duck->reset();
+            if (state.graph->is_connected()) {
+                state.graph->run_cypher("DROP GRAPH;");
+            }
             state.ingest_pct.store(0);
             {
                 std::lock_guard<std::mutex> lk(state.state_mtx);
@@ -185,6 +189,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
             return;
         }
 
+        state.ingest_t0 = std::chrono::steady_clock::now();
         std::vector<std::string> csv_paths;
         auto body = std::string(ctx.req().body());
         auto paths = extract_json_string_array(body, "paths");
@@ -201,7 +206,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
         }
 
         std::thread([&state, csv_paths]() {
-            auto t_start = std::chrono::steady_clock::now();
+            auto t_start = state.ingest_t0;
             state.ingest_elapsed_ms.store(0);
             state.duck_time_ms.store(0);
             state.score_time_ms.store(0);
@@ -266,7 +271,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
                     std::lock_guard<std::mutex> lk(state.state_mtx);
                     state.stage_num.store(4);
                     state.current_stage = "Graph Buffer Export & Bulk Load";
-                    state.stage_message = "Exporting intermediate topology to tmpfs and streaming into Memgraph Cypher engine...";
+                    state.stage_message = "Exporting intermediate topology to tmpfs RAM disk...";
                 }
                 auto t_p4 = std::chrono::steady_clock::now();
                 state.duck->exec(
@@ -281,6 +286,12 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
 
                 // Phase 5: Memgraph Ingestion
                 if (state.graph->is_connected()) {
+                    {
+                        std::lock_guard<std::mutex> lk(state.state_mtx);
+                        state.stage_num.store(5);
+                        state.current_stage = "Memgraph Topology Ingestion";
+                        state.stage_message = "Streaming transfer edges into graph storage & running community detection...";
+                    }
                     state.graph->feed_graph("/tmp/anant_edges.csv", [&state, t_start](int pct, uint64_t) {
                         state.ingest_pct.store(65 + pct * 25 / 100);
                         auto now = std::chrono::steady_clock::now();
@@ -298,7 +309,8 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
                 std::remove("/tmp/anant_accounts.csv");
 
                 auto t_total_end = std::chrono::steady_clock::now();
-                state.ingest_elapsed_ms.store(std::chrono::duration_cast<std::chrono::milliseconds>(t_total_end - t_start).count());
+                auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_total_end - t_start).count();
+                state.ingest_elapsed_ms.store(total_ms);
                 state.ingest_pct.store(100);
 
                 {
@@ -307,7 +319,10 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
                     state.current_stage = "Pipeline Complete";
                     state.stage_message = "All records processed, mule scores computed, and graph ready for investigation.";
                 }
-                std::cout << "[Anant] Pipeline complete in " << state.ingest_elapsed_ms.load() << "ms! Dataset ready.\n";
+                std::cout << "[Anant] Pipeline complete in " << total_ms << "ms! Dataset ready.\n";
+
+                // Ensure clients have received the 100% frame before running flips to false
+                std::this_thread::sleep_for(std::chrono::milliseconds(300));
             } catch (const std::exception& e) {
                 std::lock_guard<std::mutex> lk(state.state_mtx);
                 state.last_error = e.what();
@@ -364,6 +379,12 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
             msg = state.stage_message;
         }
 
+        if (state.ingest_running.load()) {
+            auto now = std::chrono::steady_clock::now();
+            state.ingest_elapsed_ms.store(
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - state.ingest_t0).count());
+        }
+
         int64_t critical_mules = 0;
         int64_t syndicates_count = 0;
         if (state.duck->is_loaded()) {
@@ -405,12 +426,18 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
     router.get("/api/events", [&state](aegon::http::Context& ctx) -> aegon::core::Task<void> {
         auto stream = co_await ctx.sse();
 
-        for (int i = 0; i < 600; i++) {
+        for (int i = 0; i < 1200; i++) {
             std::string stage, msg;
             {
                 std::lock_guard<std::mutex> lk(state.state_mtx);
                 stage = state.current_stage;
                 msg = state.stage_message;
+            }
+
+            if (state.ingest_running.load()) {
+                auto now = std::chrono::steady_clock::now();
+                state.ingest_elapsed_ms.store(
+                    std::chrono::duration_cast<std::chrono::milliseconds>(now - state.ingest_t0).count());
             }
 
             std::ostringstream data;
@@ -434,7 +461,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
 
             auto* loop = aegon::core::EventLoop::current();
             if (loop) {
-                co_await loop->ring().timeout(500'000'000ULL);
+                co_await loop->ring().timeout(200'000'000ULL);
             }
         }
     });

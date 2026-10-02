@@ -20,7 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenIngest,
   onOpenQuickTrace,
 }) => {
-  const isLoaded = status?.loaded ?? false;
+  const isLoaded = (status?.loaded ?? false) && (status?.rows_loaded ?? 0) > 0;
   const isMemgraphOk = status?.memgraph_ok ?? false;
 
   return (

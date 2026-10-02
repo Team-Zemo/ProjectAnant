@@ -4,11 +4,9 @@ import {
   LayoutDashboard,
   GitBranch,
   AlertTriangle,
-  Zap,
   Server,
   Layers,
   ChevronRight,
-  ShieldAlert,
   Network,
 } from "lucide-react";
 import type { NavTabId } from "../../types";
@@ -55,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       path: "/syndicates",
       label: "Fraud Syndicates",
       icon: Network,
-      badge: typeof syndicatesCount === "number" && syndicatesCount > 0 ? `${syndicatesCount}` : "122 Rings",
+      badge: typeof syndicatesCount === "number" && syndicatesCount > 0 ? `${syndicatesCount} Rings` : null,
       badgeClass: "bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold",
     },
     {
@@ -63,7 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       path: "/mules",
       label: "Mule Registry",
       icon: AlertTriangle,
-      badge: typeof topRiskCount === "number" && topRiskCount > 0 ? `${topRiskCount}` : "Active",
+      badge: typeof topRiskCount === "number" && topRiskCount > 0 ? `${topRiskCount}` : null,
       badgeClass: "bg-destructive/20 text-destructive border border-destructive/30 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold",
     },
     {
@@ -135,22 +133,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 );
               })}
             </ul>
-          </div>
-
-          {/* Architecture Badge */}
-          <div className="p-3.5 rounded-xl bg-card border border-border text-xs text-card-foreground flex flex-col gap-1.5 shadow-sm">
-            <div className="flex items-center justify-between font-semibold">
-              <span className="flex items-center gap-1.5 text-foreground font-sans">
-                <ShieldAlert className="w-3.5 h-3.5 text-primary" />
-                Abhedya-Chakra
-              </span>
-              <span className="text-[10px] font-mono uppercase bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                In-Memory
-              </span>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              DuckDB SIMD vectorization + Memgraph MAGE Cypher graph multi-hop money trail tracer.
-            </p>
           </div>
         </div>
 

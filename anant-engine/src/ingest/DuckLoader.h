@@ -128,7 +128,14 @@ public:
     /// Top N accounts by mule_score
     std::vector<std::pair<std::string,double>> top_risk_accounts(int n = 50);
 
-    bool is_loaded() const { return loaded_; }
+    bool is_loaded() const { return loaded_ && stats_.rows_loaded.load() > 0; }
+    void reset() {
+        loaded_ = false;
+        stats_.rows_loaded.store(0);
+        stats_.unique_accounts.store(0);
+        stats_.done.store(false);
+        stats_.pct.store(0);
+    }
     IngestStats& stats() { return stats_; }
 
     /// Execute any SQL (void return)

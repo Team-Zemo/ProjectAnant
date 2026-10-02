@@ -31,6 +31,7 @@ interface IngestModalProps {
   ingestPct: number;
   onStartIngest: (csvPaths?: string[] | string) => void;
   onTriggerRescore: () => void;
+  onDataReset?: () => void;
 }
 
 export interface FileQueueItem {
@@ -49,6 +50,7 @@ export const IngestModal: React.FC<IngestModalProps> = ({
   ingestPct,
   onStartIngest,
   onTriggerRescore,
+  onDataReset,
 }) => {
   const [activeMode, setActiveMode] = useState<"upload" | "path">("upload");
   const [fileList, setFileList] = useState<FileQueueItem[]>([]);
@@ -61,7 +63,39 @@ export const IngestModal: React.FC<IngestModalProps> = ({
   const [telemetry, setTelemetry] = useState<IngestProgressEvent | null>(null);
   const [resetting, setResetting] = useState(false);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  const [liveElapsedMs, setLiveElapsedMs] = useState<number>(0);
+  const ingestStartRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // When modal is opened freshly, clear previous run's results so it starts fresh
+  useEffect(() => {
+    if (isOpen && !ingestRunning && !isUploading) {
+      setTelemetry(null);
+      setUploadDurationMs(null);
+      setUploadSpeedMbps(null);
+      setLiveElapsedMs(0);
+      setFileList([]);
+      setUploadError(null);
+      setResetSuccess(null);
+    }
+  }, [isOpen]);
+
+  // Live ticking clock while ingest or upload is active
+  useEffect(() => {
+    if (ingestRunning || isUploading) {
+      if (!ingestStartRef.current) {
+        ingestStartRef.current = Date.now();
+      }
+      const timer = setInterval(() => {
+        if (ingestStartRef.current) {
+          setLiveElapsedMs(Date.now() - ingestStartRef.current);
+        }
+      }, 100);
+      return () => clearInterval(timer);
+    } else {
+      ingestStartRef.current = null;
+    }
+  }, [ingestRunning, isUploading]);
 
   // Subscribe to live SSE events stream while ingest is active
   useEffect(() => {
@@ -74,9 +108,39 @@ export const IngestModal: React.FC<IngestModalProps> = ({
     };
   }, [isOpen, ingestRunning]);
 
+  // When ingest completes (ingestRunning flips to false), immediately sync official server telemetry
+  const prevRunningRef = useRef(ingestRunning);
+  useEffect(() => {
+    if (prevRunningRef.current && !ingestRunning) {
+      api
+        .status()
+        .then((s) => {
+          if (s) {
+            setTelemetry((prev) => ({
+              ...(prev || {}),
+              pct: 100,
+              stage_num: 5,
+              stage: s.stage || "Pipeline Complete",
+              message: s.message || "All records processed, mule scores computed, and graph ready for investigation.",
+              elapsed_ms: s.elapsed_ms ?? prev?.elapsed_ms ?? liveElapsedMs,
+              duck_time_ms: s.duck_time_ms,
+              score_time_ms: s.score_time_ms,
+              syn_time_ms: s.syn_time_ms,
+              graph_time_ms: s.graph_time_ms,
+              rows: s.rows_loaded,
+              accounts: s.unique_accounts,
+              running: false,
+            }));
+          }
+        })
+        .catch(console.warn);
+    }
+    prevRunningRef.current = ingestRunning;
+  }, [ingestRunning, liveElapsedMs]);
+
   if (!isOpen) return null;
 
-  const isLoaded = status?.loaded ?? false;
+  const isLoaded = (status?.loaded ?? false) && (status?.rows_loaded ?? 0) > 0;
 
   // Add files to queue (preserving existing files)
   const addFilesToQueue = (files: FileList | File[]) => {
@@ -163,6 +227,10 @@ export const IngestModal: React.FC<IngestModalProps> = ({
     try {
       await api.resetDatabase();
       setResetSuccess("All database entries removed and tables reset successfully.");
+      setTelemetry(null);
+      setLiveElapsedMs(0);
+      setFileList([]);
+      onDataReset?.();
       setTimeout(() => setResetSuccess(null), 4000);
     } catch (e: any) {
       setUploadError(`Failed to reset database: ${e.message}`);
@@ -242,35 +310,48 @@ export const IngestModal: React.FC<IngestModalProps> = ({
       num: 1,
       title: "DuckDB SIMD Parallel Ingest",
       desc: "Multi-CSV schema unification & AVX-512 SIMD parsing",
-      time: telemetry?.duck_time_ms,
+      time: telemetry?.duck_time_ms ?? status?.duck_time_ms,
     },
     {
       num: 2,
-      title: "OLAP Aggregation & Indexing",
-      desc: "Building accounts ledger & sender/receiver B-Tree indexes",
-      time: null,
+      title: "Anant V3 Bayesian Mule Scoring",
+      desc: "7-signal Bayesian Noisy-OR fusion across unique accounts",
+      time: telemetry?.score_time_ms ?? status?.score_time_ms,
     },
     {
       num: 3,
-      title: "Anant V3 Bayesian Mule Scoring",
-      desc: "7-signal Bayesian Noisy-OR fusion across unique accounts",
-      time: telemetry?.score_time_ms,
+      title: "Fraud Syndicate Clustering",
+      desc: "Weighted Label Propagation graph community detection",
+      time: telemetry?.syn_time_ms ?? status?.syn_time_ms,
     },
     {
       num: 4,
-      title: "Fraud Syndicate Clustering",
-      desc: "Weighted Label Propagation graph community detection",
-      time: telemetry?.syn_time_ms,
+      title: "Graph Buffer & Bulk Export",
+      desc: "Exporting intermediate topology buffers to tmpfs RAM disk",
+      time: null,
     },
     {
       num: 5,
-      title: "Memgraph Graph Bulk Load",
-      desc: "Tmpfs Cypher buffer ingestion & topology materialization",
-      time: telemetry?.graph_time_ms,
+      title: "Memgraph Topology Ingestion",
+      desc: "Graph materialization & Cypher community detection",
+      time: telemetry?.graph_time_ms ?? status?.graph_time_ms,
     },
   ];
 
-  const currentStageNum = telemetry?.stage_num || (ingestRunning ? 1 : isLoaded ? 5 : 0);
+  const currentStageNum =
+    telemetry?.stage_num ??
+    status?.stage_num ??
+    (ingestRunning ? 1 : isLoaded ? 5 : 0);
+
+  const displayElapsedMs =
+    (ingestRunning
+      ? (telemetry?.elapsed_ms && telemetry.elapsed_ms > liveElapsedMs
+          ? telemetry.elapsed_ms
+          : liveElapsedMs || telemetry?.elapsed_ms)
+      : null) ??
+    telemetry?.elapsed_ms ??
+    status?.elapsed_ms ??
+    (liveElapsedMs > 0 ? liveElapsedMs : null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -384,10 +465,10 @@ export const IngestModal: React.FC<IngestModalProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center gap-3 font-mono text-xs">
-                  {telemetry?.elapsed_ms ? (
+                  {displayElapsedMs !== null && displayElapsedMs !== undefined ? (
                     <span className="flex items-center gap-1 text-muted-foreground">
                       <Clock className="w-3.5 h-3.5 text-primary" />
-                      <span>Elapsed: {(telemetry.elapsed_ms / 1000).toFixed(1)}s</span>
+                      <span>Elapsed: {(displayElapsedMs / 1000).toFixed(1)}s</span>
                     </span>
                   ) : null}
                   <span className="font-bold text-primary px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20">

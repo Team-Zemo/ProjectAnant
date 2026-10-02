@@ -173,6 +173,38 @@ export default function App() {
     }
   };
 
+  // ── Refresh all site data across modules (on ingest completion or deletion) ───
+  const refreshAllSiteData = useCallback(async () => {
+    try {
+      const s = await api.status();
+      setStatus(s);
+      setIngestRunning(s.ingest_running);
+      if (s.ingest_pct > 0) setIngestPct(s.ingest_pct);
+
+      if (s.loaded && (s.rows_loaded ?? 0) > 0) {
+        const paged = await api.topRisk(50);
+        if (paged && paged.items && paged.items.length > 0) {
+          setTopRisk(paged.items);
+          setTotalRiskCount(paged.total);
+          const topAcct = paged.items[0].account_id;
+          setSelectedAccount(topAcct);
+          setSearchQuery(topAcct);
+          handleTrace(topAcct);
+        }
+      } else {
+        // Database reset or empty
+        setTopRisk([]);
+        setTotalRiskCount(0);
+        setTrailGraph({ nodes: [], edges: [] });
+        setAccountDetail(null);
+        setSelectedAccount(null);
+        setHighlightedNodes(undefined);
+      }
+    } catch (e) {
+      console.warn("refreshAllSiteData error:", e);
+    }
+  }, [handleTrace]);
+
   // ── Start Ingest Pipeline via SSE ───────────────────────────────────────────
   const handleStartIngest = async (csvPaths?: string[] | string) => {
     setIngestRunning(true);
@@ -184,14 +216,7 @@ export default function App() {
         if (evt.pct >= 100) {
           es.close();
           setIngestRunning(false);
-          fetchTopRisk().then((risk) => {
-            if (risk && risk.length > 0) {
-              const topAcct = risk[0].account_id;
-              setSelectedAccount(topAcct);
-              setSearchQuery(topAcct);
-              handleTrace(topAcct);
-            }
-          });
+          refreshAllSiteData();
         }
       });
       eventSourceRef.current = es;
@@ -212,7 +237,7 @@ export default function App() {
         setIngestRunning(s.ingest_running);
         if (s.ingest_pct > 0) setIngestPct(s.ingest_pct);
 
-        if (s.loaded && topRisk.length === 0) {
+        if (s.loaded && (s.rows_loaded ?? 0) > 0 && topRisk.length === 0) {
           const paged = await api.topRisk(50);
           if (!mounted) return;
           if (paged && paged.items && paged.items.length > 0) {
@@ -225,6 +250,10 @@ export default function App() {
               handleTrace(targetAcct);
             }
           }
+        } else if ((s.rows_loaded ?? 0) === 0 && topRisk.length > 0) {
+          setTopRisk([]);
+          setTotalRiskCount(0);
+          setTrailGraph({ nodes: [], edges: [] });
         }
       } catch {}
     };
@@ -271,8 +300,8 @@ export default function App() {
         <Sidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          topRiskCount={totalRiskCount || topRisk.length}
-          syndicatesCount={status?.syndicates_count}
+          topRiskCount={status?.rows_loaded ? (totalRiskCount || topRisk.length) : 0}
+          syndicatesCount={status?.rows_loaded ? status?.syndicates_count : 0}
           selectedAccount={selectedAccount}
           onTraceAccount={(acct) => {
             handleTrace(acct);
@@ -358,6 +387,7 @@ export default function App() {
               path="/syndicates"
               element={
                 <SyndicatesView
+                  key={`syndicates-${status?.rows_loaded ?? 0}`}
                   onInvestigateAccount={(acct) => {
                     handleTrace(acct);
                     navigate(`/investigation/${acct}`);
@@ -373,6 +403,7 @@ export default function App() {
               path="/mules"
               element={
                 <MuleRegistryView
+                  key={`mules-${status?.rows_loaded ?? 0}`}
                   topRisk={topRisk}
                   totalRiskCount={totalRiskCount}
                   onTraceAccount={handleTrace}
@@ -408,6 +439,7 @@ export default function App() {
         ingestPct={ingestPct}
         onStartIngest={handleStartIngest}
         onTriggerRescore={handleTriggerRescore}
+        onDataReset={refreshAllSiteData}
       />
     </div>
   );
