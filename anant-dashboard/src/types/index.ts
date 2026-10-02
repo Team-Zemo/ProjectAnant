@@ -7,6 +7,8 @@ import type {
   GraphSnapshot,
   TraceResult,
   RiskAccount,
+  PagedResponse,
+  TopRiskParams,
 } from "../api/client";
 
 export type NavTabId = "overview" | "investigation" | "mules" | "pipeline" | "system";
@@ -34,7 +36,7 @@ export interface MuleRegistryFilters {
   hasScriptDevice?: boolean;
 }
 
-export type TraceMode = "trail" | "ring" | "snapshot";
+export type TraceMode = "trail" | "ring";
 
 export type {
   StatusResponse,
@@ -45,4 +47,6 @@ export type {
   GraphSnapshot,
   TraceResult,
   RiskAccount,
+  PagedResponse,
+  TopRiskParams,
 };

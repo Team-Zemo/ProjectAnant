@@ -160,6 +160,13 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
     router.get("/api/status", [&state](aegon::http::Context& ctx) {
         std::string err;
         { std::lock_guard<std::mutex> lk(state.err_mtx); err = state.last_error; }
+
+        int64_t critical_mules = 0;
+        if (state.duck->is_loaded()) {
+            ingest::DuckResult cr(state.duck->conn(), "SELECT count(*) FROM accounts WHERE mule_score >= 70.0");
+            if (cr.ok && cr.row_count() > 0) critical_mules = cr.get_int64(0, 0);
+        }
+
         std::ostringstream j;
         j << "{"
           << "\"loaded\":"           << (state.duck->is_loaded() ? "true" : "false") << ","
@@ -169,6 +176,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
           << "\"memgraph_ok\":"      << (state.graph->is_connected() ? "true" : "false") << ","
           << "\"rows_loaded\":"      << state.duck->stats().rows_loaded.load() << ","
           << "\"unique_accounts\":"  << state.duck->stats().unique_accounts.load() << ","
+          << "\"critical_mules\":"   << critical_mules << ","
           << "\"error\":\""          << err << "\""
           << "}";
         ctx.res().json(j.str());
@@ -195,41 +203,6 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
         }
     });
 
-    // ── GET /api/graph/snapshot — immediate high-risk graph on load ───────────
-    router.get("/api/graph/snapshot", [&state](aegon::http::Context& ctx) {
-        if (!state.duck->is_loaded()) {
-            ctx.res().json(std::string_view{"{\"nodes\":[],\"edges\":[]}"});
-            return;
-        }
-
-        auto max_param = ctx.req().query_param("max");
-        int max_nodes = 300;
-        if (max_param) {
-            try { max_nodes = std::stoi(std::string(*max_param)); } catch(...) {}
-        }
-
-        std::string nodes = state.duck->query_json(
-            "SELECT account_id AS id, layer, mule_score, bank, in_degree, out_degree "
-            "FROM accounts WHERE mule_score >= 40.0 "
-            "ORDER BY mule_score DESC LIMIT " + std::to_string(max_nodes)
-        );
-
-        std::string edges = state.duck->query_json(
-            "WITH top_accts AS ( "
-            "    SELECT account_id FROM accounts WHERE mule_score >= 40.0 "
-            "    ORDER BY mule_score DESC LIMIT " + std::to_string(max_nodes) + " "
-            ") "
-            "SELECT t.sender_account AS \"from\", t.receiver_account AS \"to\", "
-            "       t.amount, t.ts_unix AS ts, t.payment_mode AS mode, t.txn_id "
-            "FROM txns t "
-            "JOIN top_accts s ON t.sender_account = s.account_id "
-            "JOIN top_accts r ON t.receiver_account = r.account_id "
-            "LIMIT " + std::to_string(max_nodes * 4)
-        );
-
-        std::string res = "{\"nodes\":" + nodes + ",\"edges\":" + edges + "}";
-        ctx.res().json(res);
-    });
 
     // ── GET /api/trace/:account_id — 4-hop money trail ────────────────────────
     router.get("/api/trace/:account_id", [&state](aegon::http::Context& ctx) {
@@ -319,25 +292,111 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
         ctx.res().json(j.str());
     });
 
-    // ── GET /api/top-risk ──────────────────────────────────────────────────────
+    // ── GET /api/top-risk (paged with total count & filtering) ────────────────
     router.get("/api/top-risk", [&state](aegon::http::Context& ctx) {
         if (!state.duck->is_loaded()) {
-            ctx.res().json(std::string_view{"[]"});
+            ctx.res().json(std::string_view{"{\"total\":0,\"page\":1,\"limit\":50,\"total_pages\":0,\"items\":[]}"});
             return;
         }
 
-        int n = 50;
-        auto np = ctx.req().query_param("n");
-        if (np) { try { n = std::stoi(std::string(*np)); } catch(...) {} }
+        int limit = 50;
+        auto lp = ctx.req().query_param("limit");
+        if (!lp) lp = ctx.req().query_param("n");
+        if (lp) { try { limit = std::stoi(std::string(*lp)); } catch(...) {} }
+        if (limit <= 0) limit = 50;
+        if (limit > 500) limit = 500;
 
-        auto result = state.duck->query_json(
+        int page = 1;
+        auto pp = ctx.req().query_param("page");
+        if (pp) { try { page = std::stoi(std::string(*pp)); } catch(...) {} }
+        if (page < 1) page = 1;
+
+        int offset = (page - 1) * limit;
+        auto op = ctx.req().query_param("offset");
+        if (op) { try { offset = std::stoi(std::string(*op)); } catch(...) {} }
+        if (offset < 0) offset = 0;
+
+        // Build filtering conditions
+        std::vector<std::string> conditions;
+
+        auto sp = ctx.req().query_param("search");
+        if (sp && !sp->empty()) {
+            std::string s(std::string_view{*sp});
+            std::string esc;
+            for (char c : s) { if (c == '\'') esc += "''"; else esc += c; }
+            conditions.push_back("(account_id ILIKE '%" + esc + "%' OR bank ILIKE '%" + esc + "%')");
+        }
+
+        auto layer_p = ctx.req().query_param("layer");
+        if (layer_p && *layer_p != "all" && !layer_p->empty()) {
+            try {
+                int layer = std::stoi(std::string(*layer_p));
+                conditions.push_back("layer = " + std::to_string(layer));
+            } catch(...) {}
+        }
+
+        auto min_sp = ctx.req().query_param("min_score");
+        if (min_sp) {
+            try {
+                double min_s = std::stod(std::string(*min_sp));
+                conditions.push_back("mule_score >= " + std::to_string(min_s));
+            } catch(...) {}
+        }
+
+        auto max_sp = ctx.req().query_param("max_score");
+        if (max_sp) {
+            try {
+                double max_s = std::stod(std::string(*max_sp));
+                conditions.push_back("mule_score <= " + std::to_string(max_s));
+            } catch(...) {}
+        }
+
+        auto f_ip = ctx.req().query_param("foreign_ip");
+        if (f_ip && (*f_ip == "true" || *f_ip == "1")) {
+            conditions.push_back("has_foreign_ip = true");
+        }
+
+        auto term = ctx.req().query_param("terminal");
+        if (term && (*term == "true" || *term == "1")) {
+            conditions.push_back("has_terminal_marker = true");
+        }
+
+        auto scr = ctx.req().query_param("script");
+        if (scr && (*scr == "true" || *scr == "1")) {
+            conditions.push_back("has_script_device = true");
+        }
+
+        std::string where_sql;
+        if (!conditions.empty()) {
+            where_sql = " WHERE ";
+            for (size_t i = 0; i < conditions.size(); ++i) {
+                if (i > 0) where_sql += " AND ";
+                where_sql += conditions[i];
+            }
+        }
+
+        // Count total matching accounts
+        ingest::DuckResult count_res(state.duck->conn(), "SELECT count(*) FROM accounts" + where_sql);
+        int64_t total = (count_res.ok && count_res.row_count() > 0) ? count_res.get_int64(0, 0) : 0;
+        int total_pages = total > 0 ? static_cast<int>((total + limit - 1) / limit) : 0;
+
+        std::string items = state.duck->query_json(
             "SELECT account_id, mule_score, layer, in_degree, out_degree, "
             "       total_in, total_out, tx_count, bank, "
             "       has_foreign_ip, has_terminal_marker, has_script_device, "
             "       score_pt, score_terminal, score_topo, score_burst, score_device, "
             "       pt_ratio, terminal_ratio "
-            "FROM accounts ORDER BY mule_score DESC LIMIT " + std::to_string(n));
-        ctx.res().json(result);
+            "FROM accounts" + where_sql +
+            " ORDER BY mule_score DESC LIMIT " + std::to_string(limit) +
+            " OFFSET " + std::to_string(offset)
+        );
+
+        std::string res = "{\"total\":" + std::to_string(total) +
+                          ",\"page\":" + std::to_string(page) +
+                          ",\"limit\":" + std::to_string(limit) +
+                          ",\"total_pages\":" + std::to_string(total_pages) +
+                          ",\"items\":" + items + "}";
+        ctx.res().json(res);
     });
 
     // ── GET /api/account/:id — full account detail ────────────────────────────

@@ -31,7 +31,6 @@ interface InvestigationViewProps {
   setTraceMode: (mode: TraceMode) => void;
   onTrace: (targetAccount?: string) => void;
   onRingTrace: (targetAccount: string) => void;
-  onSnapshotTrace: () => void;
   onNodeClick: (nodeId: string) => void;
   highlightedNodes?: Set<string>;
   topRisk: RiskAccount[];
@@ -50,7 +49,6 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
   setTraceMode,
   onTrace,
   onRingTrace,
-  onSnapshotTrace,
   onNodeClick,
   highlightedNodes,
   topRisk,
@@ -91,11 +89,6 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
       setTraceMode("ring");
       onRingTrace(acct);
     }
-  };
-
-  const handleSnapshotClick = () => {
-    setTraceMode("snapshot");
-    onSnapshotTrace();
   };
 
   const handleNodeClickInternal = (nodeId: string) => {
@@ -162,18 +155,6 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
               title="2-Hop Direct Ring Neighborhood"
             >
               2-Hop Ring
-            </button>
-            <button
-              onClick={handleSnapshotClick}
-              disabled={!isReady || traceRunning}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold font-sans transition-all cursor-pointer ${
-                traceMode === "snapshot"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Cluster snapshot of top 300 high-risk accounts"
-            >
-              Global Snapshot
             </button>
           </div>
 

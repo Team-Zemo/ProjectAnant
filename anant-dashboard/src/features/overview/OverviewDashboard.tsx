@@ -9,7 +9,6 @@ import {
   Zap,
   ArrowRight,
   Shield,
-  Layers,
   Database,
   ExternalLink,
 } from "lucide-react";
@@ -36,10 +35,10 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   const [quickSearch, setQuickSearch] = useState("");
   const navigate = useNavigate();
 
-  const criticalCount = topRisk.filter((a) => (a.mule_score ?? 0) >= 70).length;
-  const l1Count = topRisk.filter((a) => a.layer === 1).length;
-  const l2Count = topRisk.filter((a) => a.layer === 2).length;
-  const l3Count = topRisk.filter((a) => a.layer === 3).length;
+  const criticalCount =
+    status?.critical_mules !== undefined
+      ? status.critical_mules
+      : topRisk.filter((a) => (a.mule_score ?? 0) >= 70).length;
 
   const handleQuickTrace = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +116,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         />
         <StatCard
           title="Critical Mule Accounts"
-          value={topRisk.length > 0 ? criticalCount : "—"}
+          value={status?.loaded ? criticalCount.toLocaleString() : "—"}
           description="Risk score ≥ 70/100"
           icon={AlertTriangle}
           badgeText="High Severity"
@@ -297,61 +296,6 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 <span>Investigate Money Trail</span>
               </button>
             </form>
-          </div>
-
-          {/* Layer Hierarchy Breakdown */}
-          <div className="p-6 rounded-2xl bg-card border border-border feature-card shadow-sm flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4 text-primary" />
-                <h3 className="font-extrabold text-sm text-foreground font-sans">
-                  AML Layer Hierarchy
-                </h3>
-              </div>
-              <span className="text-[10px] font-mono text-muted-foreground uppercase bg-muted px-1.5 py-0.5 rounded">
-                4-Stage Model
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-2.5 text-xs">
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-background border border-border">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]" />
-                  <span className="font-medium text-foreground">Clean Senders / Inflows</span>
-                </div>
-                <span className="font-mono text-muted-foreground text-[11px]">Upstream Source</span>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-background border border-border">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
-                  <span className="font-medium text-foreground">L1 Collector Mules</span>
-                </div>
-                <span className="font-mono text-destructive text-[11px] font-bold">
-                  {l1Count > 0 ? `${l1Count} accts` : "Aggregator"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-background border border-border">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
-                  <span className="font-medium text-foreground">L2 Layering / Distributors</span>
-                </div>
-                <span className="font-mono text-warning text-[11px] font-bold">
-                  {l2Count > 0 ? `${l2Count} accts` : "Pass-Through"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-background border border-border">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#a855f7]" />
-                  <span className="font-medium text-foreground">L3 Terminal Exit Mules</span>
-                </div>
-                <span className="font-mono text-primary text-[11px] font-bold">
-                  {l3Count > 0 ? `${l3Count} accts` : "Crypto / P2P"}
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@
 #include <http/middleware/SecurityHeaders.h>
 #include "api/Routes.h"
 #include <iostream>
+#include <fstream>
 #include <csignal>
 #include <filesystem>
 
@@ -68,8 +69,31 @@ int main(int argc, char* argv[]) {
         server.router().static_files("/", static_dir, aegon::http::StaticFilesOptions{
             .precompressed = false,
             .cache_in_memory = true,
-            .index_file = "index.html"
+            .index_file = "index.html",
+            .spa_fallback = true,
+            .fallback_file = "index.html"
         });
+
+        // Explicit SPA routes for direct browser refresh / deep links
+        std::string index_file = static_dir + "/index.html";
+        if (std::filesystem::exists(index_file)) {
+            auto spa_handler = [index_file](aegon::http::Context& ctx) {
+                std::ifstream f(index_file, std::ios::binary);
+                if (f) {
+                    std::string html((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+                    ctx.res().header("Content-Type", "text/html; charset=utf-8").body(std::move(html));
+                } else {
+                    ctx.res().status(aegon::http::StatusCode::NotFound).text("Not Found");
+                }
+            };
+
+            server.router().get("/overview", spa_handler);
+            server.router().get("/investigation", spa_handler);
+            server.router().get("/investigation/:accountId", spa_handler);
+            server.router().get("/mules", spa_handler);
+            server.router().get("/pipeline", spa_handler);
+            server.router().get("/system", spa_handler);
+        }
     }
 
     // Register all routes

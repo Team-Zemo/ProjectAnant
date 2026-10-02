@@ -35,6 +35,7 @@ export default function App() {
   const [traceMode, setTraceMode] = useState<TraceMode>("trail");
   const [trailGraph, setTrailGraph] = useState<GraphSnapshot>({ nodes: [], edges: [] });
   const [topRisk, setTopRisk] = useState<RiskAccount[]>([]);
+  const [totalRiskCount, setTotalRiskCount] = useState<number>(0);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [accountDetail, setAccountDetail] = useState<AccountStats | null>(null);
   const [searchQuery, setSearchQuery] = useState("KKBK10000000");
@@ -113,29 +114,6 @@ export default function App() {
     }
   }, []);
 
-  // ── Global High-Risk Cluster Snapshot with smooth transition ────────────────
-  const handleSnapshotTrace = useCallback(async () => {
-    setTraceMode("snapshot");
-    setTraceRunning(true);
-    const startTime = Date.now();
-
-    try {
-      const snap = await api.snapshot(300);
-      if (snap && snap.nodes) {
-        setTrailGraph(snap);
-        setHighlightedNodes(undefined);
-      }
-    } catch (e) {
-      console.error("Snapshot load failed:", e);
-    } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 280) {
-        await new Promise((r) => setTimeout(r, 280 - elapsed));
-      }
-      setTraceRunning(false);
-    }
-  }, []);
-
   // ── Node click → trace that account & update detail ─────────────────────────
   const handleNodeClick = (nodeId: string) => {
     setSelectedAccount(nodeId);
@@ -146,10 +124,11 @@ export default function App() {
   // ── Refresh Top Risk Accounts List ─────────────────────────────────────────
   const fetchTopRisk = useCallback(async () => {
     try {
-      const risk = await api.topRisk(50);
-      if (risk && risk.length > 0) {
-        setTopRisk(risk);
-        return risk;
+      const paged = await api.topRisk(50);
+      if (paged && paged.items && paged.items.length > 0) {
+        setTopRisk(paged.items);
+        setTotalRiskCount(paged.total);
+        return paged.items;
       }
     } catch (err) {
       console.warn("Could not fetch top risk accounts:", err);
@@ -209,12 +188,13 @@ export default function App() {
         if (s.ingest_pct > 0) setIngestPct(s.ingest_pct);
 
         if (s.loaded && topRisk.length === 0) {
-          const risk = await api.topRisk(50);
+          const paged = await api.topRisk(50);
           if (!mounted) return;
-          if (risk && risk.length > 0) {
-            setTopRisk(risk);
+          if (paged && paged.items && paged.items.length > 0) {
+            setTopRisk(paged.items);
+            setTotalRiskCount(paged.total);
             if (trailGraph.nodes.length === 0) {
-              const targetAcct = selectedAccount || risk[0].account_id;
+              const targetAcct = selectedAccount || paged.items[0].account_id;
               setSelectedAccount(targetAcct);
               setSearchQuery(targetAcct);
               handleTrace(targetAcct);
@@ -266,7 +246,7 @@ export default function App() {
         <Sidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          topRiskCount={topRisk.length}
+          topRiskCount={totalRiskCount || topRisk.length}
           selectedAccount={selectedAccount}
           onTraceAccount={(acct) => {
             handleTrace(acct);
@@ -308,7 +288,6 @@ export default function App() {
                   setTraceMode={setTraceMode}
                   onTrace={handleTrace}
                   onRingTrace={handleRingTrace}
-                  onSnapshotTrace={handleSnapshotTrace}
                   onNodeClick={handleNodeClick}
                   highlightedNodes={highlightedNodes}
                   topRisk={topRisk}
@@ -335,7 +314,6 @@ export default function App() {
                   setTraceMode={setTraceMode}
                   onTrace={handleTrace}
                   onRingTrace={handleRingTrace}
-                  onSnapshotTrace={handleSnapshotTrace}
                   onNodeClick={handleNodeClick}
                   highlightedNodes={highlightedNodes}
                   topRisk={topRisk}
@@ -353,6 +331,7 @@ export default function App() {
               element={
                 <MuleRegistryView
                   topRisk={topRisk}
+                  totalRiskCount={totalRiskCount}
                   onTraceAccount={handleTrace}
                   onRefreshTopRisk={fetchTopRisk}
                   isReady={isReady}

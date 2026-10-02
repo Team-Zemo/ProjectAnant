@@ -31,8 +31,7 @@ export const SystemHealthView: React.FC<SystemHealthViewProps> = ({
     { method: "GET", path: "/api/trace/:id", purpose: "4-hop upstream/downstream money trail", status: "Active" },
     { method: "GET", path: "/api/account/:id", purpose: "Deep account telemetry, risk scores & ledger", status: "Active" },
     { method: "GET", path: "/api/graph/ring/:id", purpose: "2-hop direct neighborhood ring", status: "Active" },
-    { method: "GET", path: "/api/top-risk?n=50", purpose: "Top scored mule accounts ranking", status: "Active" },
-    { method: "GET", path: "/api/graph/snapshot", purpose: "High-risk cluster graph snapshot", status: "Active" },
+    { method: "GET", path: "/api/top-risk?page=1&limit=50", purpose: "Paged top scored mule accounts with total count", status: "Active" },
     { method: "POST", path: "/api/ingest", purpose: "Trigger DuckDB + Memgraph ingest pipeline", status: "Active" },
     { method: "POST", path: "/api/score/run", purpose: "Trigger on-demand mule risk re-scoring", status: "Active" },
   ];
