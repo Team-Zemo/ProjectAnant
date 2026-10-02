@@ -20,6 +20,7 @@ export interface StatusResponse {
   memgraph_ok: boolean;
   rows_loaded: number;
   unique_accounts: number;
+  victim_accounts?: number;
   critical_mules?: number;
   syndicates_count?: number;
   error: string;

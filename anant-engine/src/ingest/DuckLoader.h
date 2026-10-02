@@ -23,6 +23,7 @@ namespace anant::ingest {
 struct IngestStats {
     std::atomic<uint64_t> rows_loaded{0};
     std::atomic<uint64_t> unique_accounts{0};
+    std::atomic<uint64_t> victim_accounts{0};
     std::atomic<bool>     done{false};
     std::atomic<int>      pct{0};
     std::string           error;

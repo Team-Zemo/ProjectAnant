@@ -74,21 +74,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right: Telemetry, Ingest CTA, Theme Toggle */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Memgraph Indicator */}
-          <div
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/60 border border-border text-xs font-mono"
-            title={isMemgraphOk ? "Memgraph MAGE In-Memory Graph DB Connected" : "Memgraph Offline"}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isMemgraphOk ? "bg-success animate-pulse" : "bg-destructive"
-              }`}
-            />
-            <Database className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-foreground/80 font-medium hidden md:inline">
-              Memgraph {isMemgraphOk ? "Active" : "Offline"}
-            </span>
-          </div>
 
           {/* Dataset Status Pill */}
           <div

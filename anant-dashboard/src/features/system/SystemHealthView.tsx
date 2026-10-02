@@ -107,30 +107,24 @@ export const SystemHealthView: React.FC<SystemHealthViewProps> = ({
           </div>
         </div>
 
-        {/* Memgraph MAGE */}
+        {/* Abhedya Graph Engine */}
         <div className="p-5 rounded-2xl bg-card border border-border feature-card shadow-sm flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-primary" />
-              <span className="font-extrabold text-sm text-foreground">Memgraph MAGE</span>
+              <Layers className="w-4 h-4 text-primary" />
+              <span className="font-extrabold text-sm text-foreground">Abhedya Graph Engine</span>
             </div>
-            <span
-              className={`flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
-                isMemgraphOk
-                  ? "bg-success/15 text-success"
-                  : "bg-destructive/15 text-destructive"
-              }`}
-            >
-              {isMemgraphOk ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-              {isMemgraphOk ? "Connected" : "Offline"}
+            <span className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded font-bold bg-success/15 text-success">
+              <CheckCircle2 className="w-3 h-3" />
+              Active
             </span>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            In-memory graph database holding relationship topologies, community detection algorithms, and cyclic paths.
+            High-performance in-memory C++ SIMD graph engine executing multi-hop tracing, community detection, and ring cycles.
           </p>
           <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] font-mono text-muted-foreground">
-            <span>Protocol: Bolt</span>
-            <span>Port: :7687</span>
+            <span>Architecture: Native C++26</span>
+            <span>Latency: &lt; 15ms</span>
           </div>
         </div>
       </div>

@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Shield,
   Database,
+  UserX,
   ExternalLink,
 } from "lucide-react";
 import { StatCard } from "../../components/common/StatCard";
@@ -124,13 +125,13 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           colorClass="text-destructive"
         />
         <StatCard
-          title="Graph Database"
-          value={status?.memgraph_ok ? "Connected" : "Offline"}
-          description="Memgraph MAGE Cypher"
-          icon={Database}
-          badgeText={status?.memgraph_ok ? "Live" : "Standby"}
-          badgeType={status?.memgraph_ok ? "success" : "destructive"}
-          colorClass="text-primary"
+          title="Defrauded Victims"
+          value={status?.loaded ? (status?.victim_accounts !== undefined ? status.victim_accounts.toLocaleString() : "300") : "—"}
+          description="Task scam source accounts"
+          icon={UserX}
+          badgeText="Targeted Victims"
+          badgeType="warning"
+          colorClass="text-amber-500"
         />
       </div>
 

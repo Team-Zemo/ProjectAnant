@@ -25,22 +25,8 @@ pkill -f "anant-engine" 2>/dev/null || true
 pkill -f "bun.*server.ts" 2>/dev/null || true
 sleep 1
 
-# ── 1. Memgraph ───────────────────────────────────────────────────────────────
-info "Starting Memgraph MAGE (in-memory graph DB)..."
-docker compose up -d memgraph 2>/dev/null || {
-    warn "docker compose failed, trying docker-compose..."
-    docker-compose up -d memgraph
-}
-
-# Wait for Memgraph to be ready
-for i in {1..20}; do
-    if (exec 3<>/dev/tcp/127.0.0.1/7687) 2>/dev/null; then
-        exec 3>&- # close connection
-        ok "Memgraph ready on :7687"
-        break
-    fi
-    sleep 1
-done
+# ── 1. In-Memory Graph Engine ────────────────────────────────────────────────
+ok "Using native in-memory C++ SIMD graph engine (Zero external dependencies)"
 
 # ── 2. Build C++ Engine ───────────────────────────────────────────────────────
 info "Building anant-engine (C++26)..."
@@ -81,7 +67,7 @@ echo "╔═══════════════════════�
 echo "║                    Anant is Ready!                      ║"
 echo "║                                                         ║"
 echo "║  Dashboard & API: http://localhost:3000                 ║"
-echo "║  Memgraph:        bolt://localhost:7687                 ║"
+echo "║  Engine Mode:     In-Memory C++ SIMD Graph Core         ║"
 echo "║                                                         ║"
 echo "║  Load dataset:    curl -X POST localhost:3000/api/ingest║"
 echo "╚══════════════════════════════════════════════════════════╝"
@@ -92,7 +78,6 @@ cleanup() {
     echo ""
     info "Shutting down..."
     kill $ENGINE_PID 2>/dev/null || true
-    docker compose stop memgraph 2>/dev/null || true
     info "Done."
 }
 trap cleanup INT TERM

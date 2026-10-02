@@ -326,22 +326,16 @@ export const IngestModal: React.FC<IngestModalProps> = ({
     },
     {
       num: 4,
-      title: "Graph Buffer & Bulk Export",
-      desc: "Exporting intermediate topology buffers to tmpfs RAM disk",
+      title: "In-Memory Graph Topology Ready",
+      desc: "Graph indexing complete for sub-second money trail tracing & forensics",
       time: null,
-    },
-    {
-      num: 5,
-      title: "Memgraph Topology Ingestion",
-      desc: "Graph materialization & Cypher community detection",
-      time: telemetry?.graph_time_ms ?? status?.graph_time_ms,
     },
   ];
 
   const currentStageNum =
     telemetry?.stage_num ??
     status?.stage_num ??
-    (ingestRunning ? 1 : isLoaded ? 5 : 0);
+    (ingestRunning ? 1 : isLoaded ? 4 : 0);
 
   const displayElapsedMs =
     (ingestRunning
@@ -374,7 +368,7 @@ export const IngestModal: React.FC<IngestModalProps> = ({
                 Dataset Ingest & Processing Engine
               </h3>
               <p className="text-xs text-muted-foreground">
-                DuckDB SIMD Parallel Reader · Mule Scorer V3 · Memgraph Ingestion
+                DuckDB SIMD Parallel Reader · Mule Scorer V3 · In-Memory Graph Core
               </p>
             </div>
           </div>
@@ -420,7 +414,7 @@ export const IngestModal: React.FC<IngestModalProps> = ({
                 onClick={handleResetDatabase}
                 disabled={resetting}
                 className="px-2.5 py-1 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-500/10 border border-rose-500/30 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                title="Wipe and clear all transactions and accounts from DuckDB & Memgraph"
+                title="Wipe and clear all transactions and accounts from in-memory engine"
               >
                 <RotateCcw className={`w-3 h-3 ${resetting ? "animate-spin" : ""}`} />
                 <span>{resetting ? "Resetting..." : "Clear Database Entries"}</span>
@@ -492,15 +486,15 @@ export const IngestModal: React.FC<IngestModalProps> = ({
                 {telemetry?.message ||
                   (isUploading
                     ? "Buffering multipart CSV streams to local tmpfs memory..."
-                    : "Executing DuckDB SIMD Reader → Bayesian Mule Scorer → Memgraph...")}
+                    : "Executing DuckDB SIMD Reader → Bayesian Mule Scorer → In-Memory Graph Indexing...")}
               </p>
 
-              {/* 5-Stage Visual Stepper */}
+              {/* 4-Stage Visual Stepper */}
               <div className="space-y-1.5 pt-1 border-t border-border/40">
                 <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
                   Pipeline Processing Stages:
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1">
                   {stagesList.map((st) => {
                     const isDone = currentStageNum > st.num || (ingestPct === 100 && !ingestRunning);
                     const isCurrent = currentStageNum === st.num && ingestRunning;

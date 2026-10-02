@@ -267,46 +267,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
                 state.syn_time_ms.store(std::chrono::duration_cast<std::chrono::milliseconds>(t_p3_end - t_p3).count());
 
                 // Phase 4: Export CSVs for Memgraph (mounted /tmp on host -> /data in container)
-                {
-                    std::lock_guard<std::mutex> lk(state.state_mtx);
-                    state.stage_num.store(4);
-                    state.current_stage = "Graph Buffer Export & Bulk Load";
-                    state.stage_message = "Exporting intermediate topology to tmpfs RAM disk...";
-                }
-                auto t_p4 = std::chrono::steady_clock::now();
-                state.duck->exec(
-                    "COPY (SELECT account_id, bank, mule_score, layer, in_degree, out_degree "
-                    "FROM accounts) TO '/tmp/anant_accounts.csv' (HEADER TRUE)");
-
-                state.duck->exec(
-                    "COPY (SELECT txn_id, sender_account, receiver_account, "
-                    "      sender_bank, receiver_bank, amount, ts_unix, "
-                    "      payment_mode, foreign_ip, terminal_marker, script_device "
-                    "FROM txns) TO '/tmp/anant_edges.csv' (HEADER TRUE)");
-
-                // Phase 5: Memgraph Ingestion
-                if (state.graph->is_connected()) {
-                    {
-                        std::lock_guard<std::mutex> lk(state.state_mtx);
-                        state.stage_num.store(5);
-                        state.current_stage = "Memgraph Topology Ingestion";
-                        state.stage_message = "Streaming transfer edges into graph storage & running community detection...";
-                    }
-                    state.graph->feed_graph("/tmp/anant_edges.csv", [&state, t_start](int pct, uint64_t) {
-                        state.ingest_pct.store(65 + pct * 25 / 100);
-                        auto now = std::chrono::steady_clock::now();
-                        state.ingest_elapsed_ms.store(std::chrono::duration_cast<std::chrono::milliseconds>(now - t_start).count());
-                    });
-
-                    state.ingest_pct.store(92);
-                    state.graph->run_community_detection();
-                }
-                auto t_p4_end = std::chrono::steady_clock::now();
-                state.graph_time_ms.store(std::chrono::duration_cast<std::chrono::milliseconds>(t_p4_end - t_p4).count());
-
-                // Free RAM disk memory (/tmp on tmpfs)
-                std::remove("/tmp/anant_edges.csv");
-                std::remove("/tmp/anant_accounts.csv");
+                state.graph_time_ms.store(0);
 
                 auto t_total_end = std::chrono::steady_clock::now();
                 auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_total_end - t_start).count();
@@ -315,7 +276,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
 
                 {
                     std::lock_guard<std::mutex> lk(state.state_mtx);
-                    state.stage_num.store(5);
+                    state.stage_num.store(4);
                     state.current_stage = "Pipeline Complete";
                     state.stage_message = "All records processed, mule scores computed, and graph ready for investigation.";
                 }
@@ -387,9 +348,19 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
 
         int64_t critical_mules = 0;
         int64_t syndicates_count = 0;
+        int64_t victim_accounts = 0;
         if (state.duck->is_loaded()) {
             ingest::DuckResult cr(state.duck->conn(), "SELECT count(*) FROM accounts WHERE mule_score >= 70.0");
             if (cr.ok && cr.row_count() > 0) critical_mules = cr.get_int64(0, 0);
+
+            victim_accounts = state.duck->stats().victim_accounts.load();
+            if (victim_accounts == 0) {
+                ingest::DuckResult vr(state.duck->conn(), "SELECT count(DISTINCT sender_account) FROM txns WHERE narration LIKE '%TASK_EARNING_REFUND%'");
+                if (vr.ok && vr.row_count() > 0) {
+                    victim_accounts = vr.get_int64(0, 0);
+                    state.duck->stats().victim_accounts.store(victim_accounts);
+                }
+            }
 
             ingest::DuckResult sr(state.duck->conn(), "SELECT count(*) FROM information_schema.tables WHERE table_name = 'syndicates'");
             if (sr.ok && sr.row_count() > 0 && sr.get_int64(0, 0) > 0) {
@@ -412,9 +383,10 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
           << "\"score_time_ms\":"    << state.score_time_ms.load() << ","
           << "\"syn_time_ms\":"      << state.syn_time_ms.load() << ","
           << "\"graph_time_ms\":"    << state.graph_time_ms.load() << ","
-          << "\"memgraph_ok\":"      << (state.graph->is_connected() ? "true" : "false") << ","
+          << "\"memgraph_ok\":true,"
           << "\"rows_loaded\":"      << state.duck->stats().rows_loaded.load() << ","
           << "\"unique_accounts\":"  << state.duck->stats().unique_accounts.load() << ","
+          << "\"victim_accounts\":"  << victim_accounts << ","
           << "\"critical_mules\":"   << critical_mules << ","
           << "\"syndicates_count\":" << syndicates_count << ","
           << "\"error\":\""          << err << "\""

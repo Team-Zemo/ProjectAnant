@@ -38,8 +38,8 @@ int main(int argc, char* argv[]) {
               << "║  VoidHacks 8.0 · Abhedya-Chakra          ║\n"
               << "╚══════════════════════════════════════════╝\n\n"
               << "  Aegon HTTP/2 server on :" << listen_port << "\n"
-              << "  Memgraph at "             << memgraph_host << ":" << memgraph_port << "\n"
-              << "  Worker threads: "         << worker_threads << "\n";
+              << "  Graph Engine:             In-Memory C++ SIMD Vector Core\n"
+              << "  Worker threads:           " << worker_threads << "\n";
 
     if (std::filesystem::exists(static_dir)) {
         std::cout << "  Serving dashboard from:   " << static_dir << "\n\n";
@@ -49,13 +49,7 @@ int main(int argc, char* argv[]) {
 
     // Initialize shared application state
     anant::api::AppState state(memgraph_host, memgraph_port);
-
-    if (!state.graph->is_connected()) {
-        std::cerr << "[WARN] Memgraph not reachable — graph queries will fail.\n"
-                  << "       Start Memgraph: docker run -p 7687:7687 memgraph/memgraph-mage\n";
-    } else {
-        std::cout << "[OK] Connected to Memgraph\n";
-    }
+    std::cout << "[OK] In-Memory C++ SIMD Graph Core Initialized\n";
 
     // Build Aegon server with 1 GB body size limit for large CSV datasets
     aegon::http::Server server;

@@ -499,24 +499,7 @@ void SyndicateDetector::detect_and_store(std::function<void(int)> progress_cb) {
 
     if (progress_cb) progress_cb(95);
 
-    // ── 11. Sync to Memgraph (if connected) ──────────────────────────────────
-    if (graph_.is_connected()) {
-        std::cout << "[SyndicateDetector] Syncing syndicate tags to Memgraph...\n";
-        graph_.run_cypher("CREATE INDEX ON :Account(syndicate_id)");
-        for (const auto& s : syndicates) {
-            for (int idx : s.member_indices) {
-                const auto& n = nodes[idx];
-                std::string cypher = "MATCH (a:Account {id: '" + n.id + "'}) "
-                                     "SET a.syndicate_id = '" + s.syndicate_id + "', "
-                                     "    a.syndicate_role = '" + n.role + "'";
-                if (!graph_.run_cypher(cypher)) {
-                    std::cout << "[SyndicateDetector] Memgraph memory limit reached, skipping remaining Memgraph sync.\n";
-                    goto memgraph_done;
-                }
-            }
-        }
-        memgraph_done:;
-    }
+    // Memgraph decoupled: syndicate tags are persisted in DuckDB accounts & syndicates tables
 
     if (progress_cb) progress_cb(100);
     std::cout << "[SyndicateDetector] Suspect group identification and persistence complete!\n";

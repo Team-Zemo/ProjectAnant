@@ -74,6 +74,11 @@ GraphEngine::GraphEngine(std::string host, uint16_t port)
     : host_(std::move(host)), port_(port)
 {
     mg_init();
+    reconnect();
+}
+
+bool GraphEngine::reconnect() {
+    if (connected_) return true;
     mg_session_params* params = mg_session_params_make();
     mg_session_params_set_host(params, host_.c_str());
     mg_session_params_set_port(params, port_);
@@ -84,13 +89,18 @@ GraphEngine::GraphEngine(std::string host, uint16_t port)
     mg_session_params_destroy(params);
 
     if (r == 0) {
+        if (session_) mg_session_destroy(static_cast<mg_session*>(session_));
         session_   = static_cast<void*>(s);
         connected_ = true;
         std::cout << "[GraphEngine] Connected to Memgraph at " << host_ << ":" << port_ << "\n";
-    } else {
-        std::cerr << "[GraphEngine] Could not connect to Memgraph at "
-                  << host_ << ":" << port_ << "\n";
+        return true;
     }
+    return false;
+}
+
+bool GraphEngine::is_connected() {
+    if (connected_) return true;
+    return reconnect();
 }
 
 GraphEngine::~GraphEngine() {

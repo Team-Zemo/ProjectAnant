@@ -75,7 +75,8 @@ public:
     GraphEngine(const GraphEngine&)            = delete;
     GraphEngine& operator=(const GraphEngine&) = delete;
 
-    bool is_connected() const noexcept { return connected_; }
+    bool is_connected();
+    bool reconnect();
 
     /// Feed edges from DuckDB into Memgraph (called after DuckDB load).
     /// Batches edges in chunks for throughput.

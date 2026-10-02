@@ -159,6 +159,10 @@ uint64_t DuckLoader::load(const std::vector<std::string>& csv_paths,
         DuckResult acnt(conn_, "SELECT COUNT(*) FROM accounts");
         if (!acnt.has_error() && acnt.row_count() > 0)
             stats_.unique_accounts.store(static_cast<uint64_t>(acnt.get_int64(0,0)));
+
+        DuckResult vcnt(conn_, "SELECT COUNT(DISTINCT sender_account) FROM txns WHERE narration LIKE '%TASK_EARNING_REFUND%'");
+        if (!vcnt.has_error() && vcnt.row_count() > 0)
+            stats_.victim_accounts.store(static_cast<uint64_t>(vcnt.get_int64(0,0)));
     }
 
     if (progress_cb) progress_cb(85, stats_.rows_loaded.load());
