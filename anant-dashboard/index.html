@@ -1,21 +1,37 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Project Anant · Abhedya-Chakra AML Intelligence Engine</title>
     <script>
-      // Enforce dark theme by default
+      // Enforce light theme by default for landing/home page, and dark theme by default for dashboard
       try {
-        const theme = localStorage.getItem('app-theme') || 'dark';
+        const path = window.location.pathname;
+        const isHomeRoute = path === '/' || path === '/architecture';
+        const defaultTheme = isHomeRoute ? 'light' : 'dark';
+        const savedTheme = isHomeRoute
+          ? localStorage.getItem('home-theme')
+          : (localStorage.getItem('dashboard-theme') || localStorage.getItem('app-theme'));
+        const theme = savedTheme || defaultTheme;
         if (theme === 'dark') {
           document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
         } else {
           document.documentElement.classList.remove('dark');
+          document.documentElement.setAttribute('data-theme', 'light');
         }
       } catch (e) {
-        document.documentElement.classList.add('dark');
+        // default fallback based on path
+        const isHome = window.location.pathname === '/' || window.location.pathname === '/architecture';
+        if (isHome) {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.setAttribute('data-theme', 'light');
+        } else {
+          document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
       }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -14,6 +14,7 @@ import { InvestigationView } from "./features/investigation/InvestigationView";
 import { MuleRegistryView } from "./features/mules/MuleRegistryView";
 import { SyndicatesView } from "./features/syndicates/SyndicatesView";
 import { SystemHealthView } from "./features/system/SystemHealthView";
+import { HomePage, ArchitecturePage } from "./features/home";
 import { QuickTraceModal } from "./components/modals/QuickTraceModal";
 import { IngestModal } from "./components/modals/IngestModal";
 import type { TraceMode } from "./types";
@@ -279,8 +280,37 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // ── Sync Theme based on Route (Home: Light default, Dashboard: Dark default) ──
+  useEffect(() => {
+    const isHomeRoute = location.pathname === "/" || location.pathname === "/architecture";
+    const defaultTheme = isHomeRoute ? "light" : "dark";
+    const savedTheme = isHomeRoute
+      ? localStorage.getItem("home-theme")
+      : (localStorage.getItem("dashboard-theme") || localStorage.getItem("app-theme"));
+    const activeTheme = savedTheme || defaultTheme;
+
+    if (activeTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  }, [location.pathname]);
+
   const isReady = status?.loaded ?? false;
   const isInvestigationRoute = location.pathname.startsWith("/investigation");
+
+  // Serve standalone landing page at "/" and architecture page at "/architecture"
+  if (location.pathname === "/" || location.pathname === "/architecture") {
+    return (
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/architecture" element={<ArchitecturePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-soft-orange selection:text-foreground">
@@ -317,6 +347,7 @@ export default function App() {
           {/* React Router Routes */}
           <Routes>
             <Route path="/" element={<Navigate to="/overview" replace />} />
+            <Route path="/dashboard" element={<Navigate to="/overview" replace />} />
             <Route
               path="/overview"
               element={

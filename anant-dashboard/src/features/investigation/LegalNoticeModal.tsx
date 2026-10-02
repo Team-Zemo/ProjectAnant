@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { marked } from "marked";
 import {
   X,
   Printer,
@@ -135,13 +134,18 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
     return generateCourtHtml(latexTokens, reportLang);
   }, [latexTokens, reportLang]);
 
-  // Case Diary Markdown parser
+  // Case Diary Simple Markdown parser
   const caseDiaryHtml = useMemo(() => {
-    try {
-      return marked.parse(caseDiaryContent, { gfm: true, breaks: true }) as string;
-    } catch {
-      return caseDiaryContent;
-    }
+    if (!caseDiaryContent) return "";
+    return caseDiaryContent
+      .replace(/^### (.*$)/gim, '<h3 class="text-base font-bold text-foreground mt-4 mb-2">$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2 class="text-lg font-bold text-foreground mt-5 mb-2">$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1 class="text-xl font-bold text-foreground mt-6 mb-3">$1</h1>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold text-foreground">$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+      .replace(/^- (.*$)/gim, '<li class="ml-4 list-disc">$1</li>')
+      .replace(/\n\n/gim, '<p class="my-2"></p>')
+      .replace(/\n/gim, '<br />');
   }, [caseDiaryContent]);
 
   if (!isOpen) return null;

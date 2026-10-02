@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Shield, Activity, Database, Zap, Menu, Search, RefreshCw } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import type { StatusResponse } from "../../types";
@@ -36,8 +37,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Menu className="w-5 h-5 text-foreground" />
           </button>
 
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/25">
+          <Link
+            to="/"
+            className="flex items-center gap-2.5 group cursor-pointer transition-opacity hover:opacity-90"
+            title="Go to Anant Landing Page"
+          >
+            <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/25 group-hover:scale-105 transition-transform">
               <Shield className="w-5 h-5" />
             </div>
             <div className="flex flex-col">
@@ -48,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Abhedya-Chakra · VoidHacks 8.0 In-Memory Graph Engine
               </span>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Center/Search Quick Trigger */}
