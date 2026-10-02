@@ -91,6 +91,8 @@ int main(int argc, char* argv[]) {
             server.router().get("/overview", spa_handler);
             server.router().get("/investigation", spa_handler);
             server.router().get("/investigation/:accountId", spa_handler);
+            server.router().get("/syndicates", spa_handler);
+            server.router().get("/syndicates/:syndicateId", spa_handler);
             server.router().get("/mules", spa_handler);
             server.router().get("/system", spa_handler);
         }
