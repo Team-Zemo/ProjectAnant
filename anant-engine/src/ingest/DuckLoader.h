@@ -108,6 +108,13 @@ public:
         bool has_terminal_marker{false};
         bool has_script_device{false};
         double mule_score{0};
+        double score_pt{0};
+        double score_terminal{0};
+        double score_topo{0};
+        double score_burst{0};
+        double score_device{0};
+        double pt_ratio{0};
+        double terminal_ratio{0};
     };
     AccountStats account_stats(const std::string& account_id);
 

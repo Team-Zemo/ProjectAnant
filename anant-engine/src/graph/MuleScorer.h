@@ -2,16 +2,13 @@
 /**
  * MuleScorer — computes the Mule Risk Index (0–100) for each account.
  *
- * This runs AFTER DuckDB ingestion as a one-shot batch pass.
- * Results are written back to the DuckDB `accounts.mule_score` column
- * and then synced into Memgraph node properties.
- *
- * Algorithm (weighted composite):
- *   30pts — Pass-through velocity (≥90% of in-funds dispersed ≤15 min)
- *   20pts — Fan-out score (3–7 distinct outgoing accounts)
- *   20pts — Fan-in score (≥5 distinct incoming accounts)
- *   20pts — Terminal marker (CRYPTO/P2P in narration OR foreign IP)
- *   10pts — Script device (Web_Emulator / Linux_Script)
+ * Implements the Anant V2 Temporal Flow Conservation Engine:
+ *   Step 1: Bidirectional Pass-Through Matching (1-to-N Dispersal & N-to-1 Aggregation)
+ *           with 16-minute window (960s), cursor anti-double-counting, and continuous decay.
+ *   Step 2: Value-Weighted Cash-Out Terminal Risk (TR) across 3 cyber flags:
+ *           Foreign IP (185/194), Headless Script Device, and Crypto/Cash Narrations.
+ *   Step 3: Graph Topology & Smurfing Signatures (Matched Fan-In, Matched Fan-Out, Reciprocal Wash).
+ *   Step 4: Dormancy Burst Index (distinguishing compromised personal mules from legitimate merchants).
  */
 
 #include "../ingest/DuckLoader.h"
@@ -26,25 +23,12 @@ public:
     MuleScorer(anant::ingest::DuckLoader& duck, GraphEngine& graph)
         : duck_(duck), graph_(graph) {}
 
-    /// Run scoring for all accounts. Writes scores to DuckDB + Memgraph.
+    /// Run the full scoring engine across all accounts using columnar typed arrays.
     /// progress_cb receives (pct 0-100)
     void score_all(std::function<void(int)> progress_cb = {});
 
 private:
-    /// Velocity pass-through: accounts that disperse ≥90% of incoming funds
-    /// within 15 minutes across ≥2 outgoing transfers.
-    void score_velocity(std::function<void(int)>& cb);
-
-    /// Fan-in (collector) and fan-out (distributor) scoring.
-    void score_degree(std::function<void(int)>& cb);
-
-    /// Terminal marker and script device scoring.
-    void score_terminal(std::function<void(int)>& cb);
-
-    /// Final composite: clamp to [0,100], write to DuckDB accounts table.
-    void finalize(std::function<void(int)>& cb);
-
-    /// Push scores from DuckDB to Memgraph node properties.
+    void execute_scoring(std::function<void(int)> progress_cb);
     void sync_to_memgraph();
 
     anant::ingest::DuckLoader& duck_;

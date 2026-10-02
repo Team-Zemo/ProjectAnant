@@ -65,7 +65,9 @@ uint64_t DuckLoader::load(const std::string& csv_path,
             Device_Type                                                 AS device_type,
             (IP_Address LIKE '185.%' OR IP_Address LIKE '194.%')        AS foreign_ip,
             (Narration LIKE '%CRYPTO%' OR Narration LIKE '%P2P%' 
-             OR Narration LIKE '%WALLET%')                              AS terminal_marker,
+             OR Narration LIKE '%WALLET%' OR Narration LIKE '%USDT%'
+             OR Narration LIKE '%BINANCE%' OR Narration LIKE '%OTC%'
+             OR Narration LIKE '%EXCHANGE%')                            AS terminal_marker,
             (Device_Type = 'Web_Emulator' 
              OR Device_Type = 'Linux_Script')                           AS script_device
         FROM read_csv_auto(')SQL" + csv_path + R"SQL(',
@@ -106,7 +108,17 @@ uint64_t DuckLoader::load(const std::string& csv_path,
             (COALESCE(i.has_term, false) OR COALESCE(o.has_term, false))       AS has_terminal_marker,
             (COALESCE(i.has_script, false) OR COALESCE(o.has_script, false))   AS has_script_device,
             CAST(0.0 AS DOUBLE)                          AS mule_score,
-            CAST(0 AS INTEGER)                           AS layer
+            CAST(0 AS INTEGER)                           AS layer,
+            CAST(0.0 AS DOUBLE)                          AS score_velocity,
+            CAST(0.0 AS DOUBLE)                          AS score_fan_in,
+            CAST(0.0 AS DOUBLE)                          AS score_fan_out,
+            CAST(0.0 AS DOUBLE)                          AS score_terminal,
+            CAST(0.0 AS DOUBLE)                          AS score_device,
+            CAST(0.0 AS DOUBLE)                          AS score_pt,
+            CAST(0.0 AS DOUBLE)                          AS score_topo,
+            CAST(0.0 AS DOUBLE)                          AS score_burst,
+            CAST(0.0 AS DOUBLE)                          AS pt_ratio,
+            CAST(0.0 AS DOUBLE)                          AS terminal_ratio
         FROM (
             SELECT receiver_account AS acct, ANY_VALUE(receiver_bank) AS bank,
                    COUNT(DISTINCT sender_account) AS in_deg,
@@ -219,7 +231,11 @@ DuckLoader::AccountStats DuckLoader::account_stats(const std::string& id) {
     DuckResult res(conn_,
         "SELECT total_in, total_out, tx_count, first_seen, last_seen, bank, "
         "       has_foreign_ip, has_terminal_marker, has_script_device, mule_score, "
-        "       in_degree, out_degree, layer "
+        "       in_degree, out_degree, layer, "
+        "       COALESCE(score_pt, 0.0), COALESCE(score_terminal, 0.0), "
+        "       COALESCE(score_topo, 0.0), COALESCE(score_burst, 0.0), "
+        "       COALESCE(pt_ratio, 0.0), COALESCE(terminal_ratio, 0.0), "
+        "       COALESCE(score_device, 0.0) "
         "FROM accounts WHERE account_id = '" + safe_id + "'");
 
     if (!res.has_error() && res.row_count() > 0) {
@@ -236,6 +252,17 @@ DuckLoader::AccountStats DuckLoader::account_stats(const std::string& id) {
         s.in_degree           = res.get_int64 (10, 0);
         s.out_degree          = res.get_int64 (11, 0);
         s.layer               = static_cast<int32_t>(res.get_int64(12, 0));
+        if (res.col_count() >= 19) {
+            s.score_pt        = res.get_double(13, 0);
+            s.score_terminal  = res.get_double(14, 0);
+            s.score_topo      = res.get_double(15, 0);
+            s.score_burst     = res.get_double(16, 0);
+            s.pt_ratio        = res.get_double(17, 0);
+            s.terminal_ratio  = res.get_double(18, 0);
+        }
+        if (res.col_count() >= 20) {
+            s.score_device    = res.get_double(19, 0);
+        }
     }
     return s;
 }

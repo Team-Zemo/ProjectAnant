@@ -128,6 +128,34 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
            .json(std::string_view{"{\"status\":\"started\"}"});
     });
 
+    // ── POST /api/score/run — on-demand re-scoring ────────────────────────────
+    router.post("/api/score/run", [&state](aegon::http::Context& ctx) {
+        if (!state.duck->is_loaded()) {
+            ctx.res().status(aegon::http::StatusCode::BadRequest)
+               .json(std::string_view{"{\"error\":\"Database not loaded yet\"}"});
+            return;
+        }
+
+        std::thread([&state]() {
+            try {
+                std::cout << "[Anant] Triggering on-demand MuleScorer run...\n";
+                state.score_pct.store(5);
+                state.scorer->score_all([&state](int pct) {
+                    state.score_pct.store(pct);
+                });
+                state.score_pct.store(100);
+                std::cout << "[Anant] Scoring engine run complete!\n";
+            } catch (const std::exception& e) {
+                std::lock_guard<std::mutex> lk(state.err_mtx);
+                state.last_error = e.what();
+                std::cerr << "[Anant] Scoring error: " << e.what() << "\n";
+            }
+        }).detach();
+
+        ctx.res().status(aegon::http::StatusCode::Accepted)
+           .json(std::string_view{"{\"status\":\"scoring_started\"}"});
+    });
+
     // ── GET /api/status ────────────────────────────────────────────────────────
     router.get("/api/status", [&state](aegon::http::Context& ctx) {
         std::string err;
@@ -305,7 +333,9 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
         auto result = state.duck->query_json(
             "SELECT account_id, mule_score, layer, in_degree, out_degree, "
             "       total_in, total_out, tx_count, bank, "
-            "       has_foreign_ip, has_terminal_marker, has_script_device "
+            "       has_foreign_ip, has_terminal_marker, has_script_device, "
+            "       score_pt, score_terminal, score_topo, score_burst, score_device, "
+            "       pt_ratio, terminal_ratio "
             "FROM accounts ORDER BY mule_score DESC LIMIT " + std::to_string(n));
         ctx.res().json(result);
     });
@@ -345,6 +375,13 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
           << "\"has_foreign_ip\":" << (stats.has_foreign_ip ? "true" : "false") << ","
           << "\"has_terminal_marker\":" << (stats.has_terminal_marker ? "true" : "false") << ","
           << "\"has_script_device\":" << (stats.has_script_device ? "true" : "false") << ","
+          << "\"score_pt\":" << stats.score_pt << ","
+          << "\"score_terminal\":" << stats.score_terminal << ","
+          << "\"score_topo\":" << stats.score_topo << ","
+          << "\"score_burst\":" << stats.score_burst << ","
+          << "\"score_device\":" << stats.score_device << ","
+          << "\"pt_ratio\":" << stats.pt_ratio << ","
+          << "\"terminal_ratio\":" << stats.terminal_ratio << ","
           << "\"transactions\":" << txns << "}";
         ctx.res().json(j.str());
     });

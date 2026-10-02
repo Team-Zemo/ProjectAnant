@@ -21,12 +21,6 @@ const LAYER_COLORS: Record<number, string> = {
   3: "#a855f7",   // L3 Terminal (Crypto/P2P) — purple
 };
 
-const LAYER_LABELS: Record<number, string> = {
-  0: "Inflow Senders (Left)",
-  1: "L1 Collector (High Fan-In)",
-  2: "L2 Layering (High Fan-Out)",
-  3: "Outflow Receivers (Right)",
-};
 
 function formatAmount(amt: number): string {
   if (amt >= 10000000) return `₹${(amt / 10000000).toFixed(1)}Cr`;
@@ -469,34 +463,6 @@ export default function TransactionGraph({
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      {/* Visual Layer Legend */}
-      <div style={{
-        position: "absolute", bottom: 16, left: 16,
-        background: "rgba(11, 15, 25, 0.88)",
-        border: "1px solid rgba(56, 189, 248, 0.2)",
-        borderRadius: 10, padding: "12px 16px",
-        display: "flex", flexDirection: "column", gap: 7, zIndex: 10,
-        backdropFilter: "blur(16px)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.6)"
-      }}>
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "var(--accent-blue)" }}>
-          AML Money Trail Flow
-        </div>
-        {Object.entries(LAYER_LABELS).map(([layer, label]) => (
-          <div key={layer} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 11 }}>
-            <span style={{
-              width: 10, height: 10, borderRadius: "50%",
-              background: LAYER_COLORS[Number(layer)],
-              flexShrink: 0,
-              boxShadow: `0 0 8px ${LAYER_COLORS[Number(layer)]}`
-            }} />
-            <span style={{ color: "#cbd5e1" }}>{label}</span>
-          </div>
-        ))}
-        <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 6 }}>
-          ◂ Green = Senders (Left) · Red = Receivers (Right) ▸
-        </div>
-      </div>
 
       {/* Floating Canvas Controls */}
       <div style={{
