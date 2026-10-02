@@ -330,8 +330,9 @@ export default function App() {
         <Sidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          topRiskCount={status?.rows_loaded ? (totalRiskCount || topRisk.length) : 0}
+          topRiskCount={status?.rows_loaded ? (status?.critical_mules ?? totalRiskCount ?? topRisk.length) : 0}
           syndicatesCount={status?.rows_loaded ? status?.syndicates_count : 0}
+          victimCount={status?.rows_loaded ? status?.victim_accounts : 0}
           selectedAccount={selectedAccount}
           onTraceAccount={(acct) => {
             handleTrace(acct);
@@ -435,6 +436,23 @@ export default function App() {
               element={
                 <MuleRegistryView
                   key={`mules-${status?.rows_loaded ?? 0}`}
+                  initialTab="mules"
+                  status={status}
+                  topRisk={topRisk}
+                  totalRiskCount={totalRiskCount}
+                  onTraceAccount={handleTrace}
+                  onRefreshTopRisk={fetchTopRisk}
+                  isReady={isReady}
+                />
+              }
+            />
+            <Route
+              path="/victims"
+              element={
+                <MuleRegistryView
+                  key={`victims-${status?.rows_loaded ?? 0}`}
+                  initialTab="victims"
+                  status={status}
                   topRisk={topRisk}
                   totalRiskCount={totalRiskCount}
                   onTraceAccount={handleTrace}

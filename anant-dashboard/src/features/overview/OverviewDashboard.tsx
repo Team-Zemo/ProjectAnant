@@ -123,15 +123,17 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           badgeText="High Severity"
           badgeType="destructive"
           colorClass="text-destructive"
+          onClick={() => navigate("/mules")}
         />
         <StatCard
           title="Defrauded Victims"
-          value={status?.loaded ? (status?.victim_accounts !== undefined ? status.victim_accounts.toLocaleString() : "300") : "—"}
-          description="Task scam source accounts"
+          value={status?.loaded && status?.victim_accounts !== undefined ? status.victim_accounts.toLocaleString() : "—"}
+          description="Task scam source accounts · Click to view"
           icon={UserX}
           badgeText="Targeted Victims"
           badgeType="warning"
           colorClass="text-amber-500"
+          onClick={() => navigate("/victims")}
         />
       </div>
 
@@ -178,10 +180,18 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               </thead>
               <tbody className="divide-y divide-border">
                 {topRisk.slice(0, 8).map((a) => {
+                  const isVictim = Boolean(a.is_victim || (a.layer === 0 && a.is_victim));
                   const score = Number(a.mule_score ?? 0);
                   const layer = Number(a.layer ?? 0);
-                  const badgeClass =
-                    layer === 1 ? "badge-l1" : layer === 2 ? "badge-l2" : layer === 3 ? "badge-l3" : "badge-clean";
+                  const badgeClass = isVictim
+                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                    : layer === 1
+                    ? "badge-l1"
+                    : layer === 2
+                    ? "badge-l2"
+                    : layer === 3
+                    ? "badge-l3"
+                    : "badge-clean";
                   const passThrough = a.total_in > 0 ? (a.total_out / a.total_in) * 100 : 0;
 
                   return (
@@ -198,7 +208,15 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                       </td>
                       <td className="py-3 px-3">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md font-mono ${badgeClass}`}>
-                          {layer === 1 ? "L1 Collector" : layer === 2 ? "L2 Layering" : layer === 3 ? "L3 Terminal" : "Clean"}
+                          {isVictim
+                            ? "Defrauded Victim"
+                            : layer === 1
+                            ? "L1 Collector"
+                            : layer === 2
+                            ? "L2 Layering"
+                            : layer === 3
+                            ? "L3 Terminal"
+                            : "Clean"}
                         </span>
                       </td>
                       <td className="py-3 px-3">

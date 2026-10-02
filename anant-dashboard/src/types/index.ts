@@ -7,6 +7,7 @@ import type {
   GraphSnapshot,
   TraceResult,
   RiskAccount,
+  VictimAccount,
   PagedResponse,
   TopRiskParams,
   Syndicate,
@@ -15,7 +16,7 @@ import type {
   SyndicateParams,
 } from "../api/client";
 
-export type NavTabId = "overview" | "investigation" | "mules" | "syndicates" | "system";
+export type NavTabId = "overview" | "investigation" | "mules" | "victims" | "syndicates" | "system";
 
 export interface NavItem {
   id: NavTabId;
@@ -51,6 +52,7 @@ export type {
   GraphSnapshot,
   TraceResult,
   RiskAccount,
+  VictimAccount,
   PagedResponse,
   TopRiskParams,
   Syndicate,

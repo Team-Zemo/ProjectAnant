@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
   Search,
   RefreshCw,
@@ -16,11 +16,15 @@ import {
   ArrowUpDown,
   SlidersHorizontal,
   Loader2,
+  ShieldAlert,
+  ExternalLink,
 } from "lucide-react";
-import type { RiskAccount, LayerFilter, RiskSeverityFilter, NavTabId } from "../../types";
+import type { RiskAccount, VictimAccount, LayerFilter, RiskSeverityFilter, NavTabId } from "../../types";
 import { api } from "../../api/client";
 
 interface MuleRegistryViewProps {
+  initialTab?: "mules" | "victims" | "all";
+  status?: any;
   topRisk?: RiskAccount[];
   totalRiskCount?: number;
   onTraceAccount: (accountId: string) => void;
@@ -30,6 +34,8 @@ interface MuleRegistryViewProps {
 }
 
 export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
+  initialTab,
+  status,
   topRisk = [],
   totalRiskCount = 0,
   onTraceAccount,
@@ -38,13 +44,35 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
   isReady,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // Dynamically resolve active tab from URL path or query params
+  const resolveCurrentTab = useCallback((): "mules" | "victims" | "all" => {
+    if (location.pathname === "/victims") return "victims";
+    const filter = searchParams.get("filter");
+    if (filter === "victims") return "victims";
+    if (filter === "all") return "all";
+    if (filter === "mules") return "mules";
+    return initialTab || "mules";
+  }, [location.pathname, searchParams, initialTab]);
+
+  const [activeTab, setActiveTab] = useState<"mules" | "victims" | "all">(resolveCurrentTab);
+
+  // Sync activeTab whenever route pathname or searchParams change
+  useEffect(() => {
+    const nextTab = resolveCurrentTab();
+    setActiveTab(nextTab);
+    setPage(1);
+  }, [resolveCurrentTab]);
 
   // ── Pagination State ────────────────────────────────────────────────────────
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
-  const [totalCount, setTotalCount] = useState(totalRiskCount || (topRisk.length ? 24873 : 0));
+  const [totalCount, setTotalCount] = useState<number>(totalRiskCount || 0);
   const [totalPages, setTotalPages] = useState(1);
   const [accounts, setAccounts] = useState<RiskAccount[]>(topRisk);
+  const [victimAccounts, setVictimAccounts] = useState<VictimAccount[]>([]);
   const [loading, setLoading] = useState(false);
 
   // ── Filter State ───────────────────────────────────────────────────────────
@@ -90,6 +118,41 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
     setPage(1);
   };
 
+  const handleTabChange = (newTab: "mules" | "victims" | "all") => {
+    setActiveTab(newTab);
+    setPage(1);
+    if (newTab === "victims") {
+      navigate("/victims");
+    } else if (newTab === "all") {
+      navigate("/mules?filter=all");
+    } else {
+      navigate("/mules");
+    }
+  };
+
+  // ── Fetch paged victim accounts from backend ──────────────────────────────
+  const fetchVictimsPage = useCallback(async () => {
+    if (!isReady) return;
+    setLoading(true);
+    try {
+      const res = await api.victims({
+        page,
+        limit: pageSize,
+        search: debouncedSearch,
+      });
+
+      if (res && res.items) {
+        setVictimAccounts(res.items);
+        setTotalCount(res.total);
+        setTotalPages(res.total_pages || Math.ceil(res.total / pageSize) || 1);
+      }
+    } catch (e) {
+      console.warn("Failed to fetch victim accounts:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [isReady, page, pageSize, debouncedSearch]);
+
   // ── Fetch paged accounts from backend ──────────────────────────────────────
   const fetchPage = useCallback(async () => {
     if (!isReady) return;
@@ -104,6 +167,9 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
         max_score = 69.99;
       } else if (severityFilter === "low") {
         max_score = 39.99;
+      } else if (activeTab === "mules") {
+        // By default show all mule syndicate accounts
+        min_score = 40.0;
       }
 
       const res = await api.topRisk({
@@ -130,6 +196,7 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
     }
   }, [
     isReady,
+    activeTab,
     page,
     pageSize,
     debouncedSearch,
@@ -141,8 +208,12 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
   ]);
 
   useEffect(() => {
-    fetchPage();
-  }, [fetchPage]);
+    if (activeTab === "victims") {
+      fetchVictimsPage();
+    } else {
+      fetchPage();
+    }
+  }, [activeTab, fetchPage, fetchVictimsPage]);
 
   // ── Smooth auto-scroll to top when page changes ────────────────────────────
   const scrollToTableTop = useCallback(() => {
@@ -324,6 +395,78 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
         </div>
       </div>
 
+      {/* ── View Segment Tabs (Mules vs Defrauded Victims vs All Accounts) ── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => handleTabChange("mules")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "mules"
+              ? "bg-destructive text-destructive-foreground shadow-md shadow-destructive/25"
+              : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+        >
+          <Radio className="w-3.5 h-3.5" />
+          <span>Mule Suspects</span>
+          {(status?.critical_mules !== undefined && status.critical_mules > 0) ? (
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+              activeTab === "mules" ? "bg-white/20 text-white font-bold" : "bg-muted text-muted-foreground"
+            }`}>
+              {status.critical_mules.toLocaleString()}
+            </span>
+          ) : activeTab === "mules" && totalCount > 0 ? (
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white/20 text-white font-bold">
+              {totalCount.toLocaleString()}
+            </span>
+          ) : null}
+        </button>
+
+        <button
+          onClick={() => handleTabChange("victims")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "victims"
+              ? "bg-amber-500 text-black shadow-md shadow-amber-500/30 font-extrabold"
+              : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+        >
+          <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+          <span>Defrauded Victims</span>
+          {(status?.victim_accounts !== undefined && status.victim_accounts > 0) ? (
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+              activeTab === "victims" ? "bg-black/20 text-black font-bold" : "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+            }`}>
+              {status.victim_accounts.toLocaleString()}
+            </span>
+          ) : activeTab === "victims" && totalCount > 0 ? (
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-black/20 text-black font-bold">
+              {totalCount.toLocaleString()}
+            </span>
+          ) : null}
+        </button>
+
+        <button
+          onClick={() => handleTabChange("all")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "all"
+              ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+              : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span>All Classified Accounts</span>
+          {(status?.unique_accounts !== undefined && status.unique_accounts > 0) ? (
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+              activeTab === "all" ? "bg-white/20 text-white font-bold" : "bg-muted text-muted-foreground"
+            }`}>
+              {status.unique_accounts.toLocaleString()}
+            </span>
+          ) : activeTab === "all" && totalCount > 0 ? (
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white/20 text-white font-bold">
+              {totalCount.toLocaleString()}
+            </span>
+          ) : null}
+        </button>
+      </div>
+
       {/* Filter and Control Bar */}
       <div className="p-4 rounded-2xl bg-card border border-border feature-card shadow-sm flex flex-col gap-3">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -332,7 +475,7 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by account ID or bank..."
+              placeholder={activeTab === "victims" ? "Search victim account ID or bank..." : "Search by account ID or bank..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-background border border-border text-foreground font-mono outline-none focus:border-primary placeholder:text-muted-foreground"
@@ -343,7 +486,7 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
           <div className="flex items-center gap-2 text-xs font-mono flex-wrap">
             <span className="px-2.5 py-1 rounded-lg bg-background border border-border text-muted-foreground">
               Showing <strong className="text-foreground">{startRow}–{endRow}</strong> of{" "}
-              <strong className="text-primary">{totalCount.toLocaleString()}</strong> accounts
+              <strong className="text-primary">{totalCount.toLocaleString()}</strong> {activeTab === "victims" ? "victims" : "accounts"}
             </span>
             <span className="px-2.5 py-1 rounded-lg bg-background border border-border text-muted-foreground">
               Page <strong className="text-foreground">{page}</strong> of{" "}
@@ -357,7 +500,7 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
           {/* Layer Filter */}
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-[11px] font-mono mr-1">Layer:</span>
-            {(["all", "1", "2", "3"] as LayerFilter[]).map((lvl) => (
+            {(["all", "0", "1", "2", "3"] as LayerFilter[]).map((lvl) => (
               <button
                 key={lvl}
                 onClick={() => handleLayerChange(lvl)}
@@ -367,7 +510,7 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
                     : "bg-background border border-border text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {lvl === "all" ? "All Layers" : `L${lvl}`}
+                {lvl === "all" ? "All" : lvl === "0" ? "L0 (Victims)" : `L${lvl}`}
               </button>
             ))}
           </div>
@@ -464,25 +607,123 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
             </div>
           )}
 
-          <table className="w-full text-left text-xs">
-            <thead className="sticky top-0 bg-card/95 backdrop-blur-sm z-10 border-b border-border">
-              <tr className="text-muted-foreground uppercase text-[10px] font-mono tracking-wider">
-                <th className="py-2.5 px-3">Account ID / Bank</th>
-                <th className="py-2.5 px-3">Topology Layer</th>
-                <th className="py-2.5 px-3">Mule Score</th>
-                <th className="py-2.5 px-3">Inflow / Outflow</th>
-                <th className="py-2.5 px-3">Turnover Ratio</th>
-                <th className="py-2.5 px-3">In / Out Degree</th>
-                <th className="py-2.5 px-3">Behavior Signals</th>
-                <th className="py-2.5 px-3 text-right">Investigation</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {accounts.map((a) => {
-                const score = Number(a.mule_score ?? 0);
-                const layer = Number(a.layer ?? 0);
-                const badgeClass =
-                  layer === 1
+          {activeTab === "victims" ? (
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-card/95 backdrop-blur-sm z-10 border-b border-border">
+                <tr className="text-muted-foreground uppercase text-[10px] font-mono tracking-wider">
+                  <th className="py-2.5 px-3">Victim Account ID / Bank</th>
+                  <th className="py-2.5 px-3">Total Siphoned (INR)</th>
+                  <th className="py-2.5 px-3">Targeted By (Primary Mule Recipient)</th>
+                  <th className="py-2.5 px-3">Scam Scheme / Narration</th>
+                  <th className="py-2.5 px-3">Timeline (First / Last)</th>
+                  <th className="py-2.5 px-3 text-right">Investigation</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {victimAccounts.map((v) => (
+                  <tr key={v.account_id} className="hover:bg-muted/40 transition-colors">
+                    <td className="py-3 px-3">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-foreground">
+                            {v.account_id}
+                          </span>
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                            DEFRAUDED VICTIM
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {v.bank || "BANK"} · {v.tx_count} exfiltration txns
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-3 font-mono text-[11px]">
+                      <span className="text-rose-500 font-bold text-sm">
+                        -{formatINR(v.amount_siphoned)}
+                      </span>
+                    </td>
+
+                    <td className="py-3 px-3 font-mono text-[11px]">
+                      <div className="flex flex-col">
+                        <button
+                          onClick={() => {
+                            onTraceAccount(v.primary_mule_recipient);
+                            navigate(`/investigation/${encodeURIComponent(v.primary_mule_recipient)}`);
+                          }}
+                          className="text-left font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                          title="Trace Primary Mule Recipient"
+                        >
+                          <span>{v.primary_mule_recipient}</span>
+                          <ExternalLink className="w-3 h-3 text-primary/70" />
+                        </button>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {v.primary_mule_bank || "Mule Bank"} (L1 Collector)
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold">
+                          TASK_EARNING_REFUND
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-3 font-mono text-[10px] text-muted-foreground">
+                      <div>{v.first_seen ? new Date(Number(v.first_seen) * 1000).toISOString().split("T")[0] : "—"}</div>
+                      <div className="text-foreground/70">{v.last_seen ? new Date(Number(v.last_seen) * 1000).toISOString().split("T")[0] : "—"}</div>
+                    </td>
+
+                    <td className="py-3 px-3 text-right">
+                      <button
+                        onClick={() => {
+                          onTraceAccount(v.account_id);
+                          navigate(`/investigation/${encodeURIComponent(v.account_id)}`);
+                        }}
+                        className="btn btn-xs rounded-lg font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm"
+                      >
+                        <GitBranch className="w-3 h-3" />
+                        <span>Trace In Graph</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {!loading && victimAccounts.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-muted-foreground">
+                      {isReady
+                        ? "No victim accounts match the current search."
+                        : "Dataset not loaded. Click 'Load Dataset' to start."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-card/95 backdrop-blur-sm z-10 border-b border-border">
+                <tr className="text-muted-foreground uppercase text-[10px] font-mono tracking-wider">
+                  <th className="py-2.5 px-3">Account ID / Bank</th>
+                  <th className="py-2.5 px-3">Topology Layer</th>
+                  <th className="py-2.5 px-3">Mule Score</th>
+                  <th className="py-2.5 px-3">Inflow / Outflow</th>
+                  <th className="py-2.5 px-3">Turnover Ratio</th>
+                  <th className="py-2.5 px-3">In / Out Degree</th>
+                  <th className="py-2.5 px-3">Behavior Signals</th>
+                  <th className="py-2.5 px-3 text-right">Investigation</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {accounts.map((a) => {
+                  const isVictim = Boolean(a.is_victim || (a.layer === 0 && a.is_victim));
+                  const score = Number(a.mule_score ?? 0);
+                  const layer = Number(a.layer ?? 0);
+                  const badgeClass = isVictim
+                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                    : layer === 1
                     ? "badge-l1"
                     : layer === 2
                     ? "badge-l2"
@@ -490,138 +731,156 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
                     ? "badge-l3"
                     : "badge-clean";
 
-                const passThrough =
-                  a.total_in > 0 ? (a.total_out / a.total_in) * 100 : 0;
+                  const passThrough =
+                    a.total_in > 0 ? (a.total_out / a.total_in) * 100 : 0;
 
-                return (
-                  <tr key={a.account_id} className="hover:bg-muted/40 transition-colors">
-                    <td className="py-3 px-3">
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-bold text-foreground">
-                            {a.account_id}
+                  return (
+                    <tr key={a.account_id} className="hover:bg-muted/40 transition-colors">
+                      <td className="py-3 px-3">
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-foreground">
+                              {a.account_id}
+                            </span>
+                            {isVictim && (
+                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                DEFRAUDED VICTIM
+                              </span>
+                            )}
+                            {a.syndicate_id && (
+                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                {a.syndicate_id}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {a.bank || "BANK"} · {a.tx_count} txns
                           </span>
-                          {a.syndicate_id && (
-                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                              {a.syndicate_id}
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-3">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md font-mono ${badgeClass}`}>
+                          {isVictim
+                            ? "Defrauded Victim (L0)"
+                            : layer === 1
+                            ? "L1 Collector"
+                            : layer === 2
+                            ? "L2 Layering"
+                            : layer === 3
+                            ? "L3 Terminal"
+                            : "Clean"}
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`font-mono font-bold text-sm ${
+                              isVictim
+                                ? "text-amber-400"
+                                : score >= 70
+                                ? "text-destructive"
+                                : score >= 40
+                                ? "text-warning"
+                                : "text-success"
+                            }`}
+                          >
+                            {score.toFixed(1)}
+                          </span>
+                          <div className="w-12 bg-muted rounded-full h-1.5 overflow-hidden hidden sm:block">
+                            <div
+                              className={`h-full rounded-full ${
+                                isVictim
+                                  ? "bg-amber-400"
+                                  : score >= 70
+                                  ? "bg-destructive"
+                                  : score >= 40
+                                  ? "bg-warning"
+                                  : "bg-success"
+                              }`}
+                              style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-3 font-mono text-[11px]">
+                        <div className="flex flex-col">
+                          <span className="text-emerald-500 font-semibold">
+                            +{formatINR(a.total_in)}
+                          </span>
+                          <span className="text-rose-500 font-semibold">
+                            -{formatINR(a.total_out)}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-3 font-mono text-muted-foreground">
+                        {passThrough > 0 ? (
+                          <span className={passThrough > 85 ? "text-destructive font-bold" : "text-foreground"}>
+                            {passThrough.toFixed(1)}%
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+
+                      <td className="py-3 px-3 font-mono text-muted-foreground text-[11px]">
+                        {a.in_degree ?? 0} in · {a.out_degree ?? 0} out
+                      </td>
+
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {a.has_foreign_ip && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20 font-mono">
+                              Foreign IP
                             </span>
                           )}
+                          {a.has_terminal_marker && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-mono">
+                              Terminal
+                            </span>
+                          )}
+                          {a.has_script_device && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/20 font-mono">
+                              Script
+                            </span>
+                          )}
+                          {!a.has_foreign_ip && !a.has_terminal_marker && !a.has_script_device && (
+                            <span className="text-[10px] text-muted-foreground font-mono">—</span>
+                          )}
                         </div>
-                        <span className="text-[10px] text-muted-foreground font-mono">
-                          {a.bank || "BANK"} · {a.tx_count} txns
-                        </span>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="py-3 px-3">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md font-mono ${badgeClass}`}>
-                        {layer === 1 ? "L1 Collector" : layer === 2 ? "L2 Layering" : layer === 3 ? "L3 Terminal" : "Clean"}
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`font-mono font-bold text-sm ${
-                            score >= 70
-                              ? "text-destructive"
-                              : score >= 40
-                              ? "text-warning"
-                              : "text-success"
-                          }`}
+                      <td className="py-3 px-3 text-right">
+                        <button
+                          onClick={() => {
+                            onTraceAccount(a.account_id);
+                            navigate(`/investigation/${encodeURIComponent(a.account_id)}`);
+                          }}
+                          className="btn btn-xs rounded-lg font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm"
                         >
-                          {score.toFixed(1)}
-                        </span>
-                        <div className="w-12 bg-muted rounded-full h-1.5 overflow-hidden hidden sm:block">
-                          <div
-                            className={`h-full rounded-full ${
-                              score >= 70
-                                ? "bg-destructive"
-                                : score >= 40
-                                ? "bg-warning"
-                                : "bg-success"
-                            }`}
-                            style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
+                          <GitBranch className="w-3 h-3" />
+                          <span>Trace Graph</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
 
-                    <td className="py-3 px-3 font-mono text-[11px]">
-                      <div className="flex flex-col">
-                        <span className="text-emerald-500 font-semibold">
-                          +{formatINR(a.total_in)}
-                        </span>
-                        <span className="text-rose-500 font-semibold">
-                          -{formatINR(a.total_out)}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-3 font-mono text-muted-foreground">
-                      {passThrough > 0 ? (
-                        <span className={passThrough > 85 ? "text-destructive font-bold" : "text-foreground"}>
-                          {passThrough.toFixed(1)}%
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-
-                    <td className="py-3 px-3 font-mono text-muted-foreground text-[11px]">
-                      {a.in_degree ?? 0} in · {a.out_degree ?? 0} out
-                    </td>
-
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {a.has_foreign_ip && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive border border-destructive/20 font-mono">
-                            Foreign IP
-                          </span>
-                        )}
-                        {a.has_terminal_marker && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-mono">
-                            Terminal
-                          </span>
-                        )}
-                        {a.has_script_device && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-warning/10 text-warning border border-warning/20 font-mono">
-                            Script
-                          </span>
-                        )}
-                        {!a.has_foreign_ip && !a.has_terminal_marker && !a.has_script_device && (
-                          <span className="text-[10px] text-muted-foreground font-mono">—</span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-3 text-right">
-                      <button
-                        onClick={() => {
-                          onTraceAccount(a.account_id);
-                          navigate(`/investigation/${encodeURIComponent(a.account_id)}`);
-                        }}
-                        className="btn btn-xs rounded-lg font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm"
-                      >
-                        <GitBranch className="w-3 h-3" />
-                        <span>Trace Graph</span>
-                      </button>
+                {!loading && accounts.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                      {isReady
+                        ? "No accounts match the current filter criteria."
+                        : "Dataset not loaded. Click 'Load Dataset' to start."}
                     </td>
                   </tr>
-                );
-              })}
-
-              {!loading && accounts.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-muted-foreground">
-                    {isReady
-                      ? "No accounts match the current filter criteria."
-                      : "Dataset not loaded. Click 'Load Dataset' to start."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* ── Proper Pagination Navigation Bar ─────────────────────────────── */}

@@ -9,6 +9,7 @@ interface StatCardProps {
   badgeText?: string;
   badgeType?: "primary" | "secondary" | "accent" | "success" | "warning" | "destructive" | "info";
   colorClass?: string;
+  onClick?: () => void;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -19,6 +20,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   badgeText,
   badgeType = "primary",
   colorClass = "text-primary",
+  onClick,
 }) => {
   const badgeClasses = {
     primary: "bg-primary text-primary-foreground",
@@ -31,7 +33,12 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card text-card-foreground feature-card shadow-sm p-5 transition-all duration-300 hover:border-primary/40 hover:shadow-md">
+    <div
+      onClick={onClick}
+      className={`rounded-2xl border border-border bg-card text-card-foreground feature-card shadow-sm p-5 transition-all duration-300 hover:border-primary/40 hover:shadow-md ${
+        onClick ? "cursor-pointer hover:scale-[1.01]" : ""
+      }`}
+    >
       <div className="flex items-center justify-between mb-2">
         <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
           {title}

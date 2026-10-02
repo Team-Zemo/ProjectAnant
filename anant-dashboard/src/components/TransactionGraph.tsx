@@ -17,7 +17,7 @@ interface Props {
 const LAYER_COLORS: Record<number, string> = {
   0: "#38bdf8",   // Clean Senders / Inflows — sky blue
   1: "#ef4444",   // L1 Collector — bright red
-  2: "#f59e0b",   // L2 Layering / Distributor — amber
+  2: "#eab308",   // L2 Layering / Distributor — amber
   3: "#a855f7",   // L3 Terminal (Crypto/P2P) — purple
 };
 
@@ -135,15 +135,17 @@ export default function TransactionGraph({
     // Target Account in Center (0, 0)
     if (targetNode) {
       const id = targetNode.id ?? targetNode["a.id"] ?? targetNode.account_id ?? "";
+      const isVictim = Boolean(targetNode.is_victim || (targetNode.layer === 0 && targetNode.is_victim));
       g.addNode(id, {
-        label: `${id} ★`,
+        label: isVictim ? `${id} (Victim) ★` : `${id} ★`,
         x: 0,
         y: 0,
         size: 16,
-        color: "#38bdf8", // Prominent electric blue
+        color: isVictim ? "#f97316" : (LAYER_COLORS[targetNode.layer ?? 1] ?? "#38bdf8"),
         bank: targetNode.bank ?? "",
-        layer: targetNode.layer ?? 2,
+        layer: targetNode.layer ?? (isVictim ? 0 : 2),
         isTarget: true,
+        isVictim,
       });
     }
 
@@ -154,16 +156,17 @@ export default function TransactionGraph({
       const count = senderList.length;
       const angle = Math.PI - 0.7 + (idx / Math.max(1, count - 1 || 1)) * 1.4 + (Math.random() - 0.5) * 0.2;
       const r = 160 + (Math.random() - 0.5) * 60;
-      const score = Number(n.mule_score ?? 0);
+      const isVictim = Boolean(n.is_victim || (n.layer === 0 && n.is_victim));
 
       g.addNode(id, {
-        label: `${id}`,
+        label: isVictim ? `[Victim] ${id}` : `${id}`,
         x: Math.cos(angle) * r - 40,
         y: Math.sin(angle) * r,
-        size: 11,
-        color: "#38bdf8", // Blue for senders
+        size: isVictim ? 13 : 11,
+        color: isVictim ? "#f97316" : "#38bdf8",
         bank: n.bank ?? "",
         layer: 0,
+        isVictim,
       });
     });
 

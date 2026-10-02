@@ -57,6 +57,7 @@ export interface AccountStats {
   has_foreign_ip: boolean;
   has_terminal_marker: boolean;
   has_script_device: boolean;
+  is_victim?: boolean;
   transactions?: Transaction[];
 }
 
@@ -88,6 +89,7 @@ export interface GraphNode {
   community_id?: number;
   syndicate_id?: string;
   syndicate_role?: string;
+  is_victim?: boolean;
 }
 
 export interface GraphEdge {
@@ -113,6 +115,7 @@ export interface GraphSnapshot {
 
 export interface TraceResult {
   victim: string;
+  is_victim?: boolean;
   total_in: number;
   total_out: number;
   nodes: GraphNode[];
@@ -134,6 +137,21 @@ export interface RiskAccount {
   has_foreign_ip: boolean;
   has_terminal_marker: boolean;
   has_script_device: boolean;
+  is_victim?: boolean;
+}
+
+export interface VictimAccount {
+  account_id: string;
+  bank: string;
+  amount_siphoned: number;
+  tx_count: number;
+  first_seen: number;
+  last_seen: number;
+  mule_score: number;
+  layer: number;
+  is_victim: boolean;
+  primary_mule_recipient: string;
+  primary_mule_bank: string;
 }
 
 export interface Syndicate {
@@ -182,6 +200,7 @@ export interface TopRiskParams {
   terminal?: boolean;
   script?: boolean;
   syndicate_id?: string;
+  is_victim?: boolean;
 }
 
 export interface SyndicateParams {
@@ -308,6 +327,7 @@ export const api = {
       if (params.terminal) sp.set("terminal", "true");
       if (params.script) sp.set("script", "true");
       if (params.syndicate_id) sp.set("syndicate_id", params.syndicate_id);
+      if (params.is_victim) sp.set("is_victim", "true");
       const qs = sp.toString();
       if (qs) query = `?${qs}`;
     }
@@ -322,5 +342,18 @@ export const api = {
       };
     }
     return res as PagedResponse<RiskAccount>;
+  },
+
+  victims: async (params?: { page?: number; limit?: number; search?: string }): Promise<PagedResponse<VictimAccount>> => {
+    let query = "";
+    if (params) {
+      const sp = new URLSearchParams();
+      if (params.page !== undefined) sp.set("page", String(params.page));
+      if (params.limit !== undefined) sp.set("limit", String(params.limit));
+      if (params.search && params.search.trim()) sp.set("search", params.search.trim());
+      const qs = sp.toString();
+      if (qs) query = `?${qs}`;
+    }
+    return apiFetch<PagedResponse<VictimAccount>>(`/api/victims${query}`);
   },
 };

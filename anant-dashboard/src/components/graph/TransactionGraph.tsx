@@ -18,7 +18,7 @@ interface Props {
 const LAYER_COLORS: Record<number, string> = {
   0: "#38bdf8",   // Clean Senders / Inflows — sky blue
   1: "#ef4444",   // L1 Collector — bright red
-  2: "#f59e0b",   // L2 Layering / Distributor — amber
+  2: "#eab308",   // L2 Layering / Distributor — amber
   3: "#a855f7",   // L3 Terminal (Crypto/P2P) — purple
 };
 
@@ -134,15 +134,17 @@ export default function TransactionGraph({
     // 2. FREE-FLOATING 2D PLACEMENT WITH DIRECTIONAL TENDENCY
     if (targetNode) {
       const id = targetNode.id ?? targetNode["a.id"] ?? targetNode.account_id ?? "";
+      const isVictim = Boolean(targetNode.is_victim || (targetNode.layer === 0 && targetNode.is_victim));
       g.addNode(id, {
-        label: `${id} ★`,
+        label: isVictim ? `${id} (Victim) ★` : `${id} ★`,
         x: 0,
         y: 0,
         size: 16,
-        color: "#38bdf8",
+        color: isVictim ? "#f97316" : (LAYER_COLORS[targetNode.layer ?? 1] ?? "#38bdf8"),
         bank: targetNode.bank ?? "",
-        layer: targetNode.layer ?? 2,
+        layer: targetNode.layer ?? (isVictim ? 0 : 2),
         isTarget: true,
+        isVictim,
       });
     }
 
@@ -153,15 +155,17 @@ export default function TransactionGraph({
       const count = senderList.length;
       const angle = Math.PI - 0.7 + (idx / Math.max(1, count - 1 || 1)) * 1.4 + (Math.random() - 0.5) * 0.2;
       const r = 160 + (Math.random() - 0.5) * 60;
+      const isVictim = Boolean(n.is_victim || (n.layer === 0 && n.is_victim));
 
       g.addNode(id, {
-        label: `${id}`,
+        label: isVictim ? `[Victim] ${id}` : `${id}`,
         x: Math.cos(angle) * r - 40,
         y: Math.sin(angle) * r,
-        size: 11,
-        color: "#38bdf8",
+        size: isVictim ? 13 : 11,
+        color: isVictim ? "#f97316" : "#38bdf8",
         bank: n.bank ?? "",
         layer: 0,
+        isVictim,
       });
     });
 
@@ -213,15 +217,17 @@ export default function TransactionGraph({
       if (!id || g.hasNode(id)) return;
       const angle = (idx / Math.max(1, otherList.length)) * 2 * Math.PI;
       const r = 250 + (Math.random() - 0.5) * 50;
+      const isVictim = Boolean(n.is_victim || (n.layer === 0 && n.is_victim));
 
       g.addNode(id, {
-        label: id,
+        label: isVictim ? `[Victim] ${id}` : id,
         x: Math.cos(angle) * r,
         y: Math.sin(angle) * r,
-        size: 8,
-        color: "#64748b",
+        size: isVictim ? 12 : 8,
+        color: isVictim ? "#f97316" : "#64748b",
         bank: n.bank ?? "",
-        layer: 0,
+        layer: isVictim ? 0 : (n.layer ?? 0),
+        isVictim,
       });
     });
 
@@ -548,6 +554,31 @@ export default function TransactionGraph({
         >
           <Maximize2 className="w-4 h-4" />
         </button>
+      </div>
+
+      {/* Topology Layer Legend */}
+      <div className="absolute bottom-4 left-4 z-20 p-2.5 rounded-xl bg-card/90 backdrop-blur-md border border-border shadow-lg flex flex-col gap-1.5 text-[11px] font-mono pointer-events-none select-none">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Topology Layers</span>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#f97316] ring-2 ring-[#f97316]/30" />
+          <span className="text-foreground font-semibold">Defrauded Victim (L0 Source)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
+          <span className="text-foreground font-semibold">L1 Collector Mule</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#eab308]" />
+          <span className="text-foreground font-semibold">L2 Layering / Splitter</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#a855f7]" />
+          <span className="text-foreground font-semibold">L3 Terminal (Cashout/P2P)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]" />
+          <span className="text-muted-foreground">Clean / Counterparty</span>
+        </div>
       </div>
 
       <div ref={containerRef} className="w-full h-full cursor-default" />

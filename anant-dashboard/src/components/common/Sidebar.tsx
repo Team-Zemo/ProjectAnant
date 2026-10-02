@@ -8,6 +8,7 @@ import {
   Layers,
   ChevronRight,
   Network,
+  ShieldAlert,
 } from "lucide-react";
 import type { NavTabId } from "../../types";
 
@@ -16,6 +17,7 @@ interface SidebarProps {
   onClose: () => void;
   topRiskCount?: number;
   syndicatesCount?: number;
+  victimCount?: number;
   selectedAccount?: string | null;
   onTraceAccount?: (accountId: string) => void;
 }
@@ -25,6 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   topRiskCount,
   syndicatesCount,
+  victimCount,
   selectedAccount,
   onTraceAccount,
 }) => {
@@ -61,8 +64,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       path: "/mules",
       label: "Mule Registry",
       icon: AlertTriangle,
-      badge: typeof topRiskCount === "number" && topRiskCount > 0 ? `${topRiskCount}` : null,
+      badge: typeof topRiskCount === "number" && topRiskCount > 0 ? topRiskCount.toLocaleString() : null,
       badgeClass: "bg-destructive/20 text-destructive border border-destructive/30 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold",
+    },
+    {
+      id: "victims" as NavTabId,
+      path: "/victims",
+      label: "Defrauded Victims",
+      icon: ShieldAlert,
+      badge: typeof victimCount === "number" && victimCount > 0 ? `${victimCount.toLocaleString()} Victims` : null,
+      badgeClass: "bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold",
     },
     {
       id: "system" as NavTabId,
@@ -77,6 +88,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isItemActive = (path: string) => {
     if (path === "/overview") {
       return location.pathname === "/overview" || location.pathname === "/";
+    }
+    if (path === "/victims") {
+      return location.pathname === "/victims" || (location.pathname === "/mules" && location.search.includes("filter=victims"));
+    }
+    if (path === "/mules") {
+      return location.pathname === "/mules" && !location.search.includes("filter=victims");
     }
     return location.pathname.startsWith(path);
   };

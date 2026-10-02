@@ -123,6 +123,7 @@ public:
         double terminal_ratio{0};
         std::string syndicate_id;
         std::string syndicate_role;
+        bool is_victim{false};
     };
     AccountStats account_stats(const std::string& account_id);
 

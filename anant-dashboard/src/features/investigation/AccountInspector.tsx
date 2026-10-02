@@ -16,6 +16,7 @@ import {
   Zap,
   Scale,
   FileText,
+  ShieldAlert,
 } from "lucide-react";
 import type { AccountStats } from "../../types";
 
@@ -52,6 +53,7 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
     );
   }
 
+  const isVictim = Boolean(detail.is_victim || (detail.layer === 0 && detail.is_victim));
   const score = Number(detail.mule_score ?? 0);
   const layer = Number(detail.layer ?? 0);
   const passThrough = detail.total_in > 0 ? (detail.total_out / detail.total_in) * 100 : 0;
@@ -65,16 +67,27 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
   const formatINR = (n: number) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
-  const riskLabel =
-    score >= 70 ? "CRITICAL MULE" : score >= 40 ? "SUSPECT MULE" : "LOW RISK";
-  const riskColor =
-    score >= 70 ? "text-destructive" : score >= 40 ? "text-warning" : "text-success";
-  const riskGradient =
-    score >= 70
-      ? "bg-gradient-to-r from-red-500 to-rose-600"
-      : score >= 40
-      ? "bg-gradient-to-r from-amber-500 to-orange-500"
-      : "bg-gradient-to-r from-sky-400 to-emerald-500";
+  const riskLabel = isVictim
+    ? "DEFRAUDED VICTIM"
+    : score >= 70
+    ? "CRITICAL MULE"
+    : score >= 40
+    ? "SUSPECT MULE"
+    : "LOW RISK";
+  const riskColor = isVictim
+    ? "text-amber-400"
+    : score >= 70
+    ? "text-destructive"
+    : score >= 40
+    ? "text-warning"
+    : "text-success";
+  const riskGradient = isVictim
+    ? "bg-gradient-to-r from-amber-500 to-orange-500"
+    : score >= 70
+    ? "bg-gradient-to-r from-red-500 to-rose-600"
+    : score >= 40
+    ? "bg-gradient-to-r from-amber-500 to-orange-500"
+    : "bg-gradient-to-r from-sky-400 to-emerald-500";
 
   return (
     <div className="h-full flex flex-col bg-card border-l border-border overflow-hidden select-text text-foreground">
@@ -87,7 +100,9 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
             </span>
             <span
               className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-md ${
-                layer === 1
+                isVictim
+                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                  : layer === 1
                   ? "badge-l1"
                   : layer === 2
                   ? "badge-l2"
@@ -96,7 +111,7 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
                   : "badge-clean"
               }`}
             >
-              Layer {layer || 0}
+              {isVictim ? "Defrauded Victim (L0)" : `Layer ${layer || 0}`}
             </span>
           </div>
 
@@ -122,6 +137,21 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Defrauded Victim Alert Banner */}
+      {isVictim && (
+        <div className="px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-200">
+          <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-amber-300 uppercase tracking-wide font-mono text-[10px]">
+              Defrauded Victim Exfiltration Source
+            </span>
+            <span className="text-[11px] text-muted-foreground leading-snug">
+              Account was defrauded via TASK_EARNING_REFUND phishing scam. Unauthorized debits were channeled directly to Layer 1 collector mules. Priority candidate for bank restitution.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Behavioral Signals Strip */}
       {(detail.has_foreign_ip || detail.has_terminal_marker || detail.has_script_device) && (
@@ -266,24 +296,36 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-foreground font-mono text-xs font-bold">
               <Scale className="w-3.5 h-3.5 text-primary" />
-              <span>Legal Case Officer</span>
+              <span>{isVictim ? "Victim Restitution & Evidence" : "Legal Case Officer"}</span>
             </div>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-primary/15 text-primary font-mono font-bold">
-              SEC 91 / BNSS
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
+                isVictim
+                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                  : "bg-primary/15 text-primary"
+              }`}
+            >
+              {isVictim ? "RESTITUTION" : "SEC 91 / BNSS"}
             </span>
           </div>
 
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Auto-generate court-ready Section 91 CrPC Bank Freeze Requisitions and chronological Police Case Diary with local Gemma 3 AI.
+            {isVictim
+              ? "Auto-generate formal Victim Loss Restitution Requisition & Section 91 CrPC notice to freeze recipient collector mules and recover siphoned funds."
+              : "Auto-generate court-ready Section 91 CrPC Bank Freeze Requisitions and chronological Police Case Diary with local Gemma 3 AI."}
           </p>
 
           <button
             type="button"
             onClick={() => onOpenLegalNotice?.(detail.account_id)}
-            className="w-full mt-1 px-3 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:border-primary/60"
+            className={`w-full mt-1 px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm ${
+              isVictim
+                ? "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 hover:border-amber-500/50"
+                : "bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 hover:border-primary/60"
+            }`}
           >
-            <FileText className="w-4 h-4 text-primary" />
-            <span>Generate Sec 91 Notice / Case Diary</span>
+            <FileText className={`w-4 h-4 ${isVictim ? "text-amber-400" : "text-primary"}`} />
+            <span>{isVictim ? "Generate Restitution Notice / Diary" : "Generate Sec 91 Notice / Case Diary"}</span>
           </button>
         </div>
 

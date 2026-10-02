@@ -511,7 +511,8 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
             "    UNION SELECT acct AS id FROM hop3 "
             ") "
             "SELECT n.id, COALESCE(a.layer, 0) AS layer, COALESCE(a.mule_score, 0.0) AS mule_score, "
-            "       COALESCE(a.bank, '') AS bank, COALESCE(a.in_degree, 0) AS in_degree, COALESCE(a.out_degree, 0) AS out_degree "
+            "       COALESCE(a.bank, '') AS bank, COALESCE(a.in_degree, 0) AS in_degree, COALESCE(a.out_degree, 0) AS out_degree, "
+            "       COALESCE(a.is_victim, false) AS is_victim "
             "FROM all_nodes n "
             "LEFT JOIN accounts a ON n.id = a.account_id"
         );
@@ -520,6 +521,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
 
         std::ostringstream j;
         j << "{\"victim\":\"" << account_id << "\","
+          << "\"is_victim\":" << (vstats.is_victim ? "true" : "false") << ","
           << "\"total_in\":" << vstats.total_in << ","
           << "\"total_out\":" << vstats.total_out << ","
           << "\"nodes\":" << nodes_json << ","
@@ -601,6 +603,11 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
             conditions.push_back("has_script_device = true");
         }
 
+        auto victim_p = ctx.req().query_param("is_victim");
+        if (victim_p && (*victim_p == "true" || *victim_p == "1")) {
+            conditions.push_back("is_victim = true");
+        }
+
         auto syn_p = ctx.req().query_param("syndicate_id");
         if (syn_p && !syn_p->empty()) {
             std::string sf(std::string_view{*syn_p});
@@ -626,6 +633,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
         std::string items = state.duck->query_json(
             "SELECT account_id, mule_score, layer, in_degree, out_degree, "
             "       total_in, total_out, tx_count, bank, "
+            "       COALESCE(is_victim, false) AS is_victim, "
             "       has_foreign_ip, has_terminal_marker, has_script_device, "
             "       score_pt, score_terminal, score_topo, score_burst, score_device, "
             "       pt_ratio, terminal_ratio, "
@@ -633,6 +641,65 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
             "       COALESCE(syndicate_role, '') AS syndicate_role "
             "FROM accounts" + where_sql +
             " ORDER BY mule_score DESC LIMIT " + std::to_string(limit) +
+            " OFFSET " + std::to_string(offset)
+        );
+
+        std::string res = "{\"total\":" + std::to_string(total) +
+                          ",\"page\":" + std::to_string(page) +
+                          ",\"limit\":" + std::to_string(limit) +
+                          ",\"total_pages\":" + std::to_string(total_pages) +
+                          ",\"items\":" + items + "}";
+        ctx.res().json(res);
+    });
+
+    // ── GET /api/victims (dedicated paged list of defrauded victim accounts) ──
+    router.get("/api/victims", [&state](aegon::http::Context& ctx) {
+        if (!state.duck->is_loaded()) {
+            ctx.res().json(std::string_view{"{\"total\":0,\"page\":1,\"limit\":50,\"total_pages\":0,\"items\":[]}"});
+            return;
+        }
+
+        int limit = 50;
+        auto lp = ctx.req().query_param("limit");
+        if (lp) { try { limit = std::stoi(std::string(*lp)); } catch(...) {} }
+        if (limit <= 0) limit = 50;
+        if (limit > 500) limit = 500;
+
+        int page = 1;
+        auto pp = ctx.req().query_param("page");
+        if (pp) { try { page = std::stoi(std::string(*pp)); } catch(...) {} }
+        if (page < 1) page = 1;
+        int offset = (page - 1) * limit;
+
+        std::string search_sql;
+        auto sp = ctx.req().query_param("search");
+        if (sp && !sp->empty()) {
+            std::string s(std::string_view{*sp});
+            std::string esc;
+            for (char c : s) { if (c == '\'') esc += "''"; else esc += c; }
+            search_sql = " AND (a.account_id ILIKE '%" + esc + "%' OR a.bank ILIKE '%" + esc + "%') ";
+        }
+
+        ingest::DuckResult count_res(state.duck->conn(), "SELECT count(*) FROM accounts a WHERE a.is_victim = true" + search_sql);
+        int64_t total = (count_res.ok && count_res.row_count() > 0) ? count_res.get_int64(0, 0) : 0;
+        int total_pages = total > 0 ? static_cast<int>((total + limit - 1) / limit) : 0;
+
+        std::string items = state.duck->query_json(
+            "SELECT a.account_id, a.bank, a.total_out AS amount_siphoned, a.tx_count, "
+            "       a.first_seen, a.last_seen, a.mule_score, 0 AS layer, true AS is_victim, "
+            "       COALESCE(m.mule_id, '') AS primary_mule_recipient, "
+            "       COALESCE(m.mule_bank, '') AS primary_mule_bank "
+            "FROM accounts a "
+            "LEFT JOIN ( "
+            "    SELECT sender_account, receiver_account AS mule_id, receiver_bank AS mule_bank "
+            "    FROM ( "
+            "        SELECT sender_account, receiver_account, receiver_bank, "
+            "               ROW_NUMBER() OVER (PARTITION BY sender_account ORDER BY amount DESC) as rn "
+            "        FROM txns WHERE narration LIKE '%TASK_EARNING_REFUND%' "
+            "    ) WHERE rn = 1 "
+            ") m ON a.account_id = m.sender_account "
+            "WHERE a.is_victim = true" + search_sql +
+            " ORDER BY a.total_out DESC LIMIT " + std::to_string(limit) +
             " OFFSET " + std::to_string(offset)
         );
 
@@ -668,6 +735,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
 
         std::ostringstream j;
         j << "{\"account_id\":\"" << id << "\","
+          << "\"is_victim\":" << (stats.is_victim ? "true" : "false") << ","
           << "\"bank\":\"" << stats.bank << "\","
           << "\"total_in\":" << stats.total_in << ","
           << "\"total_out\":" << stats.total_out << ","

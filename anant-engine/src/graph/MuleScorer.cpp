@@ -556,6 +556,9 @@ void MuleScorer::execute_scoring(std::function<void(int)> progress_cb) {
     duck_.exec("DROP TABLE temp_mule_scores");
     std::remove(scores_csv.c_str());
 
+    // Explicitly enforce Layer 0 (Defrauded Victim) for all victim accounts
+    duck_.exec("UPDATE accounts SET layer = 0, mule_score = LEAST(mule_score, 8.5) WHERE is_victim = true");
+
     auto flagged = duck_.query_json("SELECT COUNT(*) AS cnt FROM accounts WHERE mule_score >= 50");
     std::cout << "[MuleScorer V3] High-risk accounts (≥50): " << flagged << "\n";
 }
