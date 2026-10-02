@@ -9,9 +9,13 @@ import type {
   RiskAccount,
   PagedResponse,
   TopRiskParams,
+  Syndicate,
+  SyndicatesResponse,
+  SyndicateDetailResponse,
+  SyndicateParams,
 } from "../api/client";
 
-export type NavTabId = "overview" | "investigation" | "mules" | "pipeline" | "system";
+export type NavTabId = "overview" | "investigation" | "mules" | "syndicates" | "pipeline" | "system";
 
 export interface NavItem {
   id: NavTabId;
@@ -49,4 +53,8 @@ export type {
   RiskAccount,
   PagedResponse,
   TopRiskParams,
+  Syndicate,
+  SyndicatesResponse,
+  SyndicateDetailResponse,
+  SyndicateParams,
 };

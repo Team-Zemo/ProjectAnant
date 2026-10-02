@@ -47,6 +47,7 @@ set(ANANT_SOURCES
     src/ingest/DuckLoader.cpp
     src/graph/GraphEngine.cpp
     src/graph/MuleScorer.cpp
+    src/graph/SyndicateDetector.cpp
 )
 
 add_executable(anant-engine ${ANANT_SOURCES})

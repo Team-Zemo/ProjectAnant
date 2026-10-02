@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   api,
   type StatusResponse,
@@ -12,6 +12,7 @@ import { Sidebar } from "./components/common/Sidebar";
 import { OverviewDashboard } from "./features/overview/OverviewDashboard";
 import { InvestigationView } from "./features/investigation/InvestigationView";
 import { MuleRegistryView } from "./features/mules/MuleRegistryView";
+import { SyndicatesView } from "./features/syndicates/SyndicatesView";
 import { PipelineView } from "./features/pipeline/PipelineView";
 import { SystemHealthView } from "./features/system/SystemHealthView";
 import { QuickTraceModal } from "./components/modals/QuickTraceModal";
@@ -20,6 +21,7 @@ import type { TraceMode } from "./types";
 
 export default function App() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Navigation & UI state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -247,6 +249,7 @@ export default function App() {
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           topRiskCount={totalRiskCount || topRisk.length}
+          syndicatesCount={status?.syndicates_count}
           selectedAccount={selectedAccount}
           onTraceAccount={(acct) => {
             handleTrace(acct);
@@ -322,6 +325,21 @@ export default function App() {
                     setAccountDetail(null);
                     setSelectedAccount(null);
                     setHighlightedNodes(undefined);
+                  }}
+                />
+              }
+            />
+            <Route
+              path="/syndicates"
+              element={
+                <SyndicatesView
+                  onInvestigateAccount={(acct) => {
+                    handleTrace(acct);
+                    navigate(`/investigation/${acct}`);
+                  }}
+                  onInspectSyndicateGraph={(nodes, edges) => {
+                    setTrailGraph({ nodes, edges });
+                    navigate("/investigation");
                   }}
                 />
               }

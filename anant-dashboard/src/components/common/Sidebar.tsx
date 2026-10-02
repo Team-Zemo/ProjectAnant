@@ -9,6 +9,7 @@ import {
   Layers,
   ChevronRight,
   ShieldAlert,
+  Network,
 } from "lucide-react";
 import type { NavTabId } from "../../types";
 
@@ -16,6 +17,7 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   topRiskCount?: number;
+  syndicatesCount?: number;
   selectedAccount?: string | null;
   onTraceAccount?: (accountId: string) => void;
 }
@@ -24,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose,
   topRiskCount,
+  syndicatesCount,
   selectedAccount,
   onTraceAccount,
 }) => {
@@ -46,6 +49,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: GitBranch,
       badge: "4-Hop",
       badgeClass: "bg-primary text-primary-foreground text-[10px] px-2 py-0.5 rounded-full font-bold",
+    },
+    {
+      id: "syndicates" as NavTabId,
+      path: "/syndicates",
+      label: "Fraud Syndicates",
+      icon: Network,
+      badge: typeof syndicatesCount === "number" && syndicatesCount > 0 ? `${syndicatesCount}` : "122 Rings",
+      badgeClass: "bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold",
     },
     {
       id: "mules" as NavTabId,

@@ -118,7 +118,9 @@ uint64_t DuckLoader::load(const std::string& csv_path,
             CAST(0.0 AS DOUBLE)                          AS score_topo,
             CAST(0.0 AS DOUBLE)                          AS score_burst,
             CAST(0.0 AS DOUBLE)                          AS pt_ratio,
-            CAST(0.0 AS DOUBLE)                          AS terminal_ratio
+            CAST(0.0 AS DOUBLE)                          AS terminal_ratio,
+            CAST(NULL AS VARCHAR)                        AS syndicate_id,
+            CAST(NULL AS VARCHAR)                        AS syndicate_role
         FROM (
             SELECT receiver_account AS acct, ANY_VALUE(receiver_bank) AS bank,
                    COUNT(DISTINCT sender_account) AS in_deg,
@@ -235,7 +237,8 @@ DuckLoader::AccountStats DuckLoader::account_stats(const std::string& id) {
         "       COALESCE(score_pt, 0.0), COALESCE(score_terminal, 0.0), "
         "       COALESCE(score_topo, 0.0), COALESCE(score_burst, 0.0), "
         "       COALESCE(pt_ratio, 0.0), COALESCE(terminal_ratio, 0.0), "
-        "       COALESCE(score_device, 0.0) "
+        "       COALESCE(score_device, 0.0), "
+        "       COALESCE(syndicate_id, ''), COALESCE(syndicate_role, '') "
         "FROM accounts WHERE account_id = '" + safe_id + "'");
 
     if (!res.has_error() && res.row_count() > 0) {
@@ -262,6 +265,10 @@ DuckLoader::AccountStats DuckLoader::account_stats(const std::string& id) {
         }
         if (res.col_count() >= 20) {
             s.score_device    = res.get_double(19, 0);
+        }
+        if (res.col_count() >= 22) {
+            s.syndicate_id    = res.get_string(20, 0);
+            s.syndicate_role  = res.get_string(21, 0);
         }
     }
     return s;

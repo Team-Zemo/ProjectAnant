@@ -115,6 +115,8 @@ public:
         double score_device{0};
         double pt_ratio{0};
         double terminal_ratio{0};
+        std::string syndicate_id;
+        std::string syndicate_role;
     };
     AccountStats account_stats(const std::string& account_id);
 

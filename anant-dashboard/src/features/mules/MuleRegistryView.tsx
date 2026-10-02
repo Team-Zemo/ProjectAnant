@@ -497,9 +497,16 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
                   <tr key={a.account_id} className="hover:bg-muted/40 transition-colors">
                     <td className="py-3 px-3">
                       <div className="flex flex-col">
-                        <span className="font-mono font-bold text-foreground">
-                          {a.account_id}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-foreground">
+                            {a.account_id}
+                          </span>
+                          {a.syndicate_id && (
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                              {a.syndicate_id}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-muted-foreground font-mono">
                           {a.bank || "BANK"} · {a.tx_count} txns
                         </span>

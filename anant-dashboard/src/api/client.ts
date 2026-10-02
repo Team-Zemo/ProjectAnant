@@ -13,6 +13,7 @@ export interface StatusResponse {
   rows_loaded: number;
   unique_accounts: number;
   critical_mules?: number;
+  syndicates_count?: number;
   error: string;
 }
 
@@ -26,6 +27,8 @@ export interface AccountStats {
   layer?: number;
   in_degree?: number;
   out_degree?: number;
+  syndicate_id?: string;
+  syndicate_role?: string;
   has_foreign_ip: boolean;
   has_terminal_marker: boolean;
   has_script_device: boolean;
@@ -58,6 +61,8 @@ export interface GraphNode {
   in_degree?: number;
   out_degree?: number;
   community_id?: number;
+  syndicate_id?: string;
+  syndicate_role?: string;
 }
 
 export interface GraphEdge {
@@ -99,10 +104,39 @@ export interface RiskAccount {
   total_out: number;
   tx_count: number;
   bank: string;
+  syndicate_id?: string;
+  syndicate_role?: string;
   has_foreign_ip: boolean;
   has_terminal_marker: boolean;
   has_script_device: boolean;
 }
+
+export interface Syndicate {
+  syndicate_id: string;
+  name: string;
+  pattern_type: "AGGREGATION_HUB" | "DISPERSAL_TREE" | "WASH_CYCLE" | "MULTI_HOP_CHAIN" | "HYBRID_SYNDICATE" | string;
+  member_count: number;
+  layer1_count: number;
+  layer2_count: number;
+  layer3_count: number;
+  total_volume: number;
+  avg_mule_score: number;
+  max_mule_score: number;
+  has_foreign_ip: boolean;
+  has_script_device: boolean;
+  has_terminal_marker: boolean;
+  primary_bank: string;
+  first_seen: number;
+  last_seen: number;
+}
+
+export interface SyndicateDetailResponse {
+  syndicate: Syndicate;
+  members: RiskAccount[];
+  edges: GraphEdge[];
+}
+
+export type SyndicatesResponse = PagedResponse<Syndicate>;
 
 export interface PagedResponse<T> {
   total: number;
@@ -122,6 +156,14 @@ export interface TopRiskParams {
   foreign_ip?: boolean;
   terminal?: boolean;
   script?: boolean;
+  syndicate_id?: string;
+}
+
+export interface SyndicateParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  archetype?: string;
 }
 
 async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
@@ -159,6 +201,24 @@ export const api = {
 
   ring: (account_id: string) => apiFetch<GraphSnapshot>(`/api/graph/ring/${encodeURIComponent(account_id)}`),
 
+  syndicates: async (params?: SyndicateParams): Promise<PagedResponse<Syndicate>> => {
+    let query = "";
+    if (params) {
+      const sp = new URLSearchParams();
+      if (params.page !== undefined) sp.set("page", String(params.page));
+      if (params.limit !== undefined) sp.set("limit", String(params.limit));
+      if (params.search && params.search.trim()) sp.set("search", params.search.trim());
+      if (params.archetype && params.archetype !== "all") sp.set("archetype", params.archetype);
+      const qs = sp.toString();
+      if (qs) query = `?${qs}`;
+    }
+    return apiFetch<PagedResponse<Syndicate>>(`/api/syndicates${query}`);
+  },
+
+  syndicate: (id: string) => apiFetch<SyndicateDetailResponse>(`/api/syndicates/${encodeURIComponent(id)}`),
+
+  detectSyndicates: () => apiFetch<{ status: string }>("/api/syndicates/detect", { method: "POST" }),
+
   topRisk: async (params?: number | TopRiskParams): Promise<PagedResponse<RiskAccount>> => {
     let query = "";
     if (typeof params === "number") {
@@ -174,6 +234,7 @@ export const api = {
       if (params.foreign_ip) sp.set("foreign_ip", "true");
       if (params.terminal) sp.set("terminal", "true");
       if (params.script) sp.set("script", "true");
+      if (params.syndicate_id) sp.set("syndicate_id", params.syndicate_id);
       const qs = sp.toString();
       if (qs) query = `?${qs}`;
     }

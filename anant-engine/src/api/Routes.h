@@ -7,6 +7,7 @@
 #include "../ingest/DuckLoader.h"
 #include "../graph/GraphEngine.h"
 #include "../graph/MuleScorer.h"
+#include "../graph/SyndicateDetector.h"
 #include <memory>
 #include <atomic>
 #include <string>
@@ -25,6 +26,7 @@ struct AppState {
     std::unique_ptr<ingest::DuckLoader> duck;
     std::unique_ptr<graph::GraphEngine> graph;
     std::unique_ptr<graph::MuleScorer>  scorer;
+    std::unique_ptr<graph::SyndicateDetector> syndicate_detector;
 
     std::atomic<bool>   ingest_running{false};
     std::atomic<int>    ingest_pct{0};
@@ -33,9 +35,10 @@ struct AppState {
     std::mutex          err_mtx;
 
     explicit AppState(std::string memgraph_host = "127.0.0.1", uint16_t memgraph_port = 7687) {
-        duck   = std::make_unique<ingest::DuckLoader>();
-        graph  = std::make_unique<graph::GraphEngine>(memgraph_host, memgraph_port);
-        scorer = std::make_unique<graph::MuleScorer>(*duck, *graph);
+        duck               = std::make_unique<ingest::DuckLoader>();
+        graph              = std::make_unique<graph::GraphEngine>(memgraph_host, memgraph_port);
+        scorer             = std::make_unique<graph::MuleScorer>(*duck, *graph);
+        syndicate_detector = std::make_unique<graph::SyndicateDetector>(*duck, *graph);
     }
 };
 
@@ -82,9 +85,16 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
                 state.ingest_pct.store(35);
                 state.scorer->score_all([&state](int pct) {
                     state.score_pct.store(pct);
-                    state.ingest_pct.store(35 + pct * 25 / 100);
+                    state.ingest_pct.store(35 + pct * 20 / 100);
                 });
-                state.ingest_pct.store(60);
+                state.ingest_pct.store(55);
+
+                // Phase 3: Detect and Persist Suspect Syndicates
+                std::cout << "[Anant] Detecting and clustering suspect syndicates...\n";
+                state.syndicate_detector->detect_and_store([&state](int pct) {
+                    state.ingest_pct.store(55 + pct * 10 / 100);
+                });
+                state.ingest_pct.store(65);
 
                 // Phase 3: Export CSVs for Memgraph (mounted /tmp on host -> /data in container)
                 std::cout << "[Anant] Exporting CSVs for Memgraph bulk load...\n";
@@ -141,7 +151,11 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
                 std::cout << "[Anant] Triggering on-demand MuleScorer run...\n";
                 state.score_pct.store(5);
                 state.scorer->score_all([&state](int pct) {
-                    state.score_pct.store(pct);
+                    state.score_pct.store(pct * 80 / 100);
+                });
+                std::cout << "[Anant] Detecting and storing suspect fraud syndicates...\n";
+                state.syndicate_detector->detect_and_store([&state](int pct) {
+                    state.score_pct.store(80 + pct * 20 / 100);
                 });
                 state.score_pct.store(100);
                 std::cout << "[Anant] Scoring engine run complete!\n";
@@ -162,9 +176,16 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
         { std::lock_guard<std::mutex> lk(state.err_mtx); err = state.last_error; }
 
         int64_t critical_mules = 0;
+        int64_t syndicates_count = 0;
         if (state.duck->is_loaded()) {
             ingest::DuckResult cr(state.duck->conn(), "SELECT count(*) FROM accounts WHERE mule_score >= 70.0");
             if (cr.ok && cr.row_count() > 0) critical_mules = cr.get_int64(0, 0);
+
+            ingest::DuckResult sr(state.duck->conn(), "SELECT count(*) FROM information_schema.tables WHERE table_name = 'syndicates'");
+            if (sr.ok && sr.row_count() > 0 && sr.get_int64(0, 0) > 0) {
+                ingest::DuckResult sc(state.duck->conn(), "SELECT count(*) FROM syndicates");
+                if (sc.ok && sc.row_count() > 0) syndicates_count = sc.get_int64(0, 0);
+            }
         }
 
         std::ostringstream j;
@@ -177,6 +198,7 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
           << "\"rows_loaded\":"      << state.duck->stats().rows_loaded.load() << ","
           << "\"unique_accounts\":"  << state.duck->stats().unique_accounts.load() << ","
           << "\"critical_mules\":"   << critical_mules << ","
+          << "\"syndicates_count\":" << syndicates_count << ","
           << "\"error\":\""          << err << "\""
           << "}";
         ctx.res().json(j.str());
@@ -366,6 +388,14 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
             conditions.push_back("has_script_device = true");
         }
 
+        auto syn_p = ctx.req().query_param("syndicate_id");
+        if (syn_p && !syn_p->empty()) {
+            std::string sf(std::string_view{*syn_p});
+            std::string esc;
+            for (char c : sf) { if (c == '\'') esc += "''"; else esc += c; }
+            conditions.push_back("syndicate_id = '" + esc + "'");
+        }
+
         std::string where_sql;
         if (!conditions.empty()) {
             where_sql = " WHERE ";
@@ -385,7 +415,9 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
             "       total_in, total_out, tx_count, bank, "
             "       has_foreign_ip, has_terminal_marker, has_script_device, "
             "       score_pt, score_terminal, score_topo, score_burst, score_device, "
-            "       pt_ratio, terminal_ratio "
+            "       pt_ratio, terminal_ratio, "
+            "       COALESCE(syndicate_id, '') AS syndicate_id, "
+            "       COALESCE(syndicate_role, '') AS syndicate_role "
             "FROM accounts" + where_sql +
             " ORDER BY mule_score DESC LIMIT " + std::to_string(limit) +
             " OFFSET " + std::to_string(offset)
@@ -431,6 +463,8 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
           << "\"out_degree\":" << stats.out_degree << ","
           << "\"layer\":" << stats.layer << ","
           << "\"mule_score\":" << stats.mule_score << ","
+          << "\"syndicate_id\":\"" << stats.syndicate_id << "\","
+          << "\"syndicate_role\":\"" << stats.syndicate_role << "\","
           << "\"has_foreign_ip\":" << (stats.has_foreign_ip ? "true" : "false") << ","
           << "\"has_terminal_marker\":" << (stats.has_terminal_marker ? "true" : "false") << ","
           << "\"has_script_device\":" << (stats.has_script_device ? "true" : "false") << ","
@@ -475,6 +509,147 @@ inline void register_routes(aegon::http::Server& server, AppState& state) {
         );
 
         std::string res = "{\"ring_center\":\"" + id + "\",\"nodes\":" + nodes + ",\"edges\":" + edges + "}";
+        ctx.res().json(res);
+    });
+
+    // ── POST /api/syndicates/detect — on-demand syndicate detection ────────────
+    router.post("/api/syndicates/detect", [&state](aegon::http::Context& ctx) {
+        if (!state.duck->is_loaded()) {
+            ctx.res().status(aegon::http::StatusCode::BadRequest)
+               .json(std::string_view{"{\"error\":\"Database not loaded yet\"}"});
+            return;
+        }
+
+        std::thread([&state]() {
+            try {
+                std::cout << "[Anant] Triggering on-demand Syndicate detection...\n";
+                state.syndicate_detector->detect_and_store();
+                std::cout << "[Anant] Syndicate detection complete!\n";
+            } catch (const std::exception& e) {
+                std::cerr << "[Anant] Syndicate detection error: " << e.what() << "\n";
+            }
+        }).detach();
+
+        ctx.res().status(aegon::http::StatusCode::Accepted)
+           .json(std::string_view{"{\"status\":\"detection_started\"}"});
+    });
+
+    // ── GET /api/syndicates — paged list of fraud syndicates ──────────────────
+    router.get("/api/syndicates", [&state](aegon::http::Context& ctx) {
+        if (!state.duck->is_loaded()) {
+            ctx.res().json(std::string_view{"{\"total\":0,\"page\":1,\"limit\":20,\"total_pages\":0,\"items\":[]}"});
+            return;
+        }
+
+        int limit = 20;
+        auto lp = ctx.req().query_param("limit");
+        if (lp) { try { limit = std::stoi(std::string(*lp)); } catch(...) {} }
+        if (limit <= 0) limit = 20;
+        if (limit > 200) limit = 200;
+
+        int page = 1;
+        auto pp = ctx.req().query_param("page");
+        if (pp) { try { page = std::stoi(std::string(*pp)); } catch(...) {} }
+        if (page < 1) page = 1;
+
+        int offset = (page - 1) * limit;
+
+        std::vector<std::string> conditions;
+        auto sp = ctx.req().query_param("search");
+        if (sp && !sp->empty()) {
+            std::string s(std::string_view{*sp});
+            std::string esc;
+            for (char c : s) { if (c == '\'') esc += "''"; else esc += c; }
+            conditions.push_back("(syndicate_id ILIKE '%" + esc + "%' OR name ILIKE '%" + esc + "%' OR primary_bank ILIKE '%" + esc + "%')");
+        }
+
+        auto pat = ctx.req().query_param("archetype");
+        if (pat && !pat->empty() && *pat != "all") {
+            std::string p(std::string_view{*pat});
+            std::string esc;
+            for (char c : p) { if (c == '\'') esc += "''"; else esc += c; }
+            conditions.push_back("pattern_type = '" + esc + "'");
+        }
+
+        std::string where_sql;
+        if (!conditions.empty()) {
+            where_sql = " WHERE ";
+            for (size_t i = 0; i < conditions.size(); ++i) {
+                if (i > 0) where_sql += " AND ";
+                where_sql += conditions[i];
+            }
+        }
+
+        // Check if table exists
+        ingest::DuckResult check_tbl(state.duck->conn(), "SELECT count(*) FROM information_schema.tables WHERE table_name = 'syndicates'");
+        bool table_exists = (check_tbl.ok && check_tbl.row_count() > 0 && check_tbl.get_int64(0, 0) > 0);
+        if (!table_exists) {
+            ctx.res().json(std::string_view{"{\"total\":0,\"page\":1,\"limit\":20,\"total_pages\":0,\"items\":[]}"});
+            return;
+        }
+
+        ingest::DuckResult count_res(state.duck->conn(), "SELECT count(*) FROM syndicates" + where_sql);
+        int64_t total = (count_res.ok && count_res.row_count() > 0) ? count_res.get_int64(0, 0) : 0;
+        int total_pages = total > 0 ? static_cast<int>((total + limit - 1) / limit) : 0;
+
+        std::string items = state.duck->query_json(
+            "SELECT syndicate_id, name, pattern_type, member_count, layer1_count, layer2_count, layer3_count, "
+            "       total_volume, avg_mule_score, max_mule_score, has_foreign_ip, has_script_device, "
+            "       has_terminal_marker, primary_bank, first_seen, last_seen "
+            "FROM syndicates" + where_sql +
+            " ORDER BY total_volume DESC LIMIT " + std::to_string(limit) +
+            " OFFSET " + std::to_string(offset)
+        );
+
+        std::string res = "{\"total\":" + std::to_string(total) +
+                          ",\"page\":" + std::to_string(page) +
+                          ",\"limit\":" + std::to_string(limit) +
+                          ",\"total_pages\":" + std::to_string(total_pages) +
+                          ",\"items\":" + items + "}";
+        ctx.res().json(res);
+    });
+
+    // ── GET /api/syndicates/:id — full syndicate detail, members, and internal graph
+    router.get("/api/syndicates/:id", [&state](aegon::http::Context& ctx) {
+        auto id_sv = ctx.req().param("id").value_or("");
+        std::string id(id_sv);
+        if (id.empty() || !state.duck->is_loaded()) {
+            ctx.res().status(aegon::http::StatusCode::BadRequest)
+               .json(std::string_view{"{\"error\":\"id required or not loaded\"}"});
+            return;
+        }
+
+        std::string sid;
+        for (char c : id) { if (c=='\'') sid += "''"; else sid += c; }
+
+        std::string syn_json = state.duck->query_json(
+            "SELECT syndicate_id, name, pattern_type, member_count, layer1_count, layer2_count, layer3_count, "
+            "       total_volume, avg_mule_score, max_mule_score, has_foreign_ip, has_script_device, "
+            "       has_terminal_marker, primary_bank, first_seen, last_seen "
+            "FROM syndicates WHERE syndicate_id = '" + sid + "'"
+        );
+
+        std::string members_json = state.duck->query_json(
+            "SELECT account_id, mule_score, layer, COALESCE(syndicate_role, 'AGGREGATOR') AS syndicate_role, "
+            "       COALESCE(bank, '') AS bank, total_in, total_out, in_degree, out_degree, "
+            "       has_foreign_ip, has_terminal_marker, has_script_device "
+            "FROM accounts WHERE syndicate_id = '" + sid + "' "
+            "ORDER BY mule_score DESC"
+        );
+
+        std::string edges_json = state.duck->query_json(
+            "SELECT t.sender_account AS \"from\", t.receiver_account AS \"to\", "
+            "       t.amount, t.ts_unix AS ts, t.payment_mode AS mode, t.txn_id "
+            "FROM txns t "
+            "WHERE t.sender_account IN (SELECT account_id FROM accounts WHERE syndicate_id = '" + sid + "') "
+            "  AND t.receiver_account IN (SELECT account_id FROM accounts WHERE syndicate_id = '" + sid + "') "
+            "ORDER BY t.ts_unix ASC LIMIT 1000"
+        );
+
+        std::string single_syn = (syn_json.size() > 2 ? syn_json.substr(1, syn_json.size() - 2) : "{}");
+        std::string res = "{\"syndicate\":" + single_syn +
+                          ",\"members\":" + members_json +
+                          ",\"edges\":" + edges_json + "}";
         ctx.res().json(res);
     });
 }
