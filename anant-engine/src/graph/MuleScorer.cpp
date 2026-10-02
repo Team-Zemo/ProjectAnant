@@ -455,22 +455,28 @@ void MuleScorer::execute_scoring(std::function<void(int)> progress_cb) {
 
                 struct WeightedSignal { double p; double w; };
                 WeightedSignal signals[] = {
-                    { p_turnover,  0.30 },   // Strong: turnover conservation
-                    { p_velocity,  0.20 },   // Medium: temporal flow matching
-                    { p_terminal,  0.35 },   // Strong: crypto/wallet cashout
-                    { p_cyber,     0.35 },   // Strong: bot/proxy fingerprint
-                    { p_asymmetry, 0.10 },   // Weak: counterparty disjointness
-                    { p_fan,       0.10 },   // Weak: structural relay pattern
-                    { p_burst,     0.15 },   // Medium: dormancy burst
+                    { std::clamp(p_turnover,  0.0, 1.0), 0.30 },   // Strong: turnover conservation
+                    { std::clamp(p_velocity,  0.0, 1.0), 0.20 },   // Medium: temporal flow matching
+                    { std::clamp(p_terminal,  0.0, 1.0), 0.35 },   // Strong: crypto/wallet cashout
+                    { std::clamp(p_cyber,     0.0, 1.0), 0.35 },   // Strong: bot/proxy fingerprint
+                    { std::clamp(p_asymmetry, 0.0, 1.0), 0.10 },   // Weak: counterparty disjointness
+                    { std::clamp(p_fan,       0.0, 1.0), 0.10 },   // Weak: structural relay pattern
+                    { std::clamp(p_burst,     0.0, 1.0), 0.15 },   // Medium: dormancy burst
                 };
 
                 double survive = 1.0;
                 for (const auto& s : signals) {
-                    if (s.p > 0.0 && s.w > 0.0) {
-                        survive *= std::pow(1.0 - s.p, s.w);
+                    double p = std::clamp(s.p, 0.0, 1.0);
+                    if (p >= 1.0) {
+                        survive = 0.0;
+                        break;
+                    }
+                    if (p > 0.0 && s.w > 0.0) {
+                        survive *= std::pow(1.0 - p, s.w);
                     }
                 }
                 double mule_prob = 1.0 - survive;
+                if (std::isnan(mule_prob)) mule_prob = 1.0;
                 double mule_score = std::min(100.0, std::max(0.0, 100.0 * mule_prob));
 
                 // Layer classification (structural, not score-dependent)
