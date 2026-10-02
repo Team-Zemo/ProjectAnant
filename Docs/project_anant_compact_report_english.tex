@@ -1,0 +1,197 @@
+\documentclass[9pt,a4paper]{article}
+\usepackage[a4paper,left=14mm,right=14mm,top=12mm,bottom=12mm,headheight=14pt,headsep=5mm,footskip=7mm]{geometry}
+\usepackage{fontspec}
+\usepackage{microtype}
+\usepackage{array,tabularx,booktabs,longtable}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{lastpage}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+\setmainfont{Noto Serif}[Ligatures=TeX]
+\definecolor{ink}{HTML}{202A33}
+\definecolor{rule}{HTML}{65727E}
+\definecolor{paperblue}{HTML}{294B63}
+\definecolor{placeholder}{HTML}{5B6670}
+\definecolor{placeholderbg}{HTML}{EEF1F3}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2pt}
+\renewcommand{\arraystretch}{1.08}
+\setlist[enumerate]{leftmargin=16pt,itemsep=2pt,topsep=2pt}
+
+% Data placeholders are intentionally explicit and machine-detectable.
+% Replace the exact tokens [[...]] with case-specific values before issuance.
+\newcommand{\PH}[1]{\textcolor{placeholder}{\fboxsep=1pt\colorbox{placeholderbg}{\texttt{\detokenize{[[#1]]}}}}}
+\newcommand{\SEC}[1]{\vspace{4pt}{\color{paperblue}\large\bfseries #1}\par\vspace{2pt}\hrule height 0.55pt\vspace{3pt}}
+\newcommand{\NOTE}[1]{\textcolor{rule}{\footnotesize\textit{#1}}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textbf{PROJECT ANANT} \;|\; OPERATION ABHEDYA-CHAKRA}
+\fancyhead[R]{\small\textit{Confidential — Investigation Record}}
+\fancyfoot[L]{\small Financial Cybercrime Investigation Report}
+\fancyfoot[R]{\small Page \thepage\ of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\begin{document}
+
+\begin{center}
+{\fontsize{13}{15}\selectfont\bfseries FINANCIAL CYBERCRIME}\par
+{\fontsize{13}{15}\selectfont\bfseries TRANSACTION TRAIL \& SYNDICATE ANALYSIS REPORT}\par
+{\small Project Anant — Analytical Report Identifier: \PH{REPORT_ID}}\par
+\vspace{3pt}\rule{0.92\linewidth}{0.7pt}
+\end{center}
+
+\SEC{1. CASE / INCIDENT SUMMARY}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{29mm} X >{\bfseries}p{29mm} X@{}}
+FIR No. & \PH{FIR_NUMBER} & Case No. & \PH{CASE_NUMBER}\\
+Officer Name & \PH{OFFICER_NAME} & Police Station & \PH{POLICE_STATION}\\
+District & \PH{DISTRICT} & Date & \PH{REPORT_DATE}\\
+Report ID & \PH{REPORT_ID} & Investigation Period & \PH{INVESTIGATION_PERIOD}
+\end{tabularx}
+
+\vspace{3pt}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{30mm} X >{\bfseries}p{30mm} X@{}}
+Victim Account & \PH{VICTIM_ACCOUNT_MASKED} & Bank & \PH{VICTIM_BANK}\\
+Fraud Amount & \PH{FRAUD_AMOUNT} & Initial UTR & \PH{INITIAL_UTR}\\
+Initial Transaction & \PH{INITIAL_TRANSACTION_DATETIME} & Source & \PH{INVESTIGATION_SOURCE}
+\end{tabularx}
+
+\vspace{3pt}
+\textbf{Incident Summary.} \PH{INCIDENT_SUMMARY}
+
+\vspace{3pt}
+\textbf{KEY FINDINGS}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}l r@{\hspace{14mm}}l r@{}}
+Transactions Analysed & \PH{TRANSACTIONS_ANALYSED} & Accounts Analysed & \PH{ACCOUNTS_ANALYSED}\\
+Suspected Mules & \PH{SUSPECTED_MULES} & Syndicates & \PH{SYNDICATES_IDENTIFIED}\\
+Total Traced Amount & \PH{TOTAL_TRACED_AMOUNT} & Maximum Hop & \PH{MAXIMUM_HOP}
+\end{tabularx}
+\normalsize
+
+\SEC{MONEY TRAIL}
+\NOTE{Reconstructed transaction sequence relevant to the investigated trail. The table is the substantive record; no graphical network representation is used.}
+
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}c l l l r c l@{}}
+\toprule
+\textbf{Hop} & \textbf{Time} & \textbf{From} & \textbf{To} & \textbf{Amount} & \textbf{Layer} & \textbf{UTR / Ref.}\\
+\midrule
+1 & \PH{TX1_TIME} & \PH{TX1_FROM} & \PH{TX1_TO} & \PH{TX1_AMOUNT} & \PH{TX1_LAYER} & \PH{TX1_UTR}\\
+2 & \PH{TX2_TIME} & \PH{TX2_FROM} & \PH{TX2_TO} & \PH{TX2_AMOUNT} & \PH{TX2_LAYER} & \PH{TX2_UTR}\\
+3 & \PH{TX3_TIME} & \PH{TX3_FROM} & \PH{TX3_TO} & \PH{TX3_AMOUNT} & \PH{TX3_LAYER} & \PH{TX3_UTR}\\
+4 & \PH{TX4_TIME} & \PH{TX4_FROM} & \PH{TX4_TO} & \PH{TX4_AMOUNT} & \PH{TX4_LAYER} & \PH{TX4_UTR}\\
+5 & \PH{TX5_TIME} & \PH{TX5_FROM} & \PH{TX5_TO} & \PH{TX5_AMOUNT} & \PH{TX5_LAYER} & \PH{TX5_UTR}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\NOTE{Add or remove transaction rows only when required by the investigated trail. Avoid including unrelated transactions.}
+
+\newpage
+\SEC{2. SUSPECTED ACCOUNT ANALYSIS}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}p{17mm} p{25mm} c p{22mm} p{21mm} p{21mm} X@{}}
+\toprule
+\textbf{Account} & \textbf{Bank} & \textbf{Layer} & \textbf{Risk Index} & \textbf{Inflow} & \textbf{Outflow} & \textbf{In / Out Counterparties}\\
+\midrule
+\PH{A1_ACCOUNT} & \PH{A1_BANK} & \PH{A1_LAYER} & \PH{A1_RISK} & \PH{A1_INFLOW} & \PH{A1_OUTFLOW} & \PH{A1_IN_CTRP} / \PH{A1_OUT_CTRP}\\
+\PH{A2_ACCOUNT} & \PH{A2_BANK} & \PH{A2_LAYER} & \PH{A2_RISK} & \PH{A2_INFLOW} & \PH{A2_OUTFLOW} & \PH{A2_IN_CTRP} / \PH{A2_OUT_CTRP}\\
+\PH{A3_ACCOUNT} & \PH{A3_BANK} & \PH{A3_LAYER} & \PH{A3_RISK} & \PH{A3_INFLOW} & \PH{A3_OUTFLOW} & \PH{A3_IN_CTRP} / \PH{A3_OUT_CTRP}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{3pt}\textbf{ANALYTICAL INDICATORS}\par
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}X r@{}}
+\toprule
+\textbf{Indicator} & \textbf{Value}\\
+\midrule
+Terminal Cash-Out & \PH{INDICATOR_TERMINAL_CASHOUT}\\
+Cyber Automation & \PH{INDICATOR_CYBER_AUTOMATION}\\
+Turnover Conservation & \PH{INDICATOR_TURNOVER_CONSERVATION}\\
+Temporal Velocity & \PH{INDICATOR_TEMPORAL_VELOCITY}\\
+Dormancy Burst & \PH{INDICATOR_DORMANCY_BURST}\\
+Counterparty Asymmetry & \PH{INDICATOR_COUNTERPARTY_ASYMMETRY}\\
+Structural Fan Pattern & \PH{INDICATOR_STRUCTURAL_FAN_PATTERN}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{3pt}\textbf{Observed Interpretation.} \PH{ACCOUNT_INTERPRETATION}
+
+\SEC{SYNDICATE ANALYSIS}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{25mm} X >{\bfseries}p{25mm} X@{}}
+Syndicate ID & \PH{SYNDICATE_ID} & Archetype & \PH{SYNDICATE_ARCHETYPE}\\
+Members & \PH{SYNDICATE_MEMBERS} & Total Volume & \PH{SYNDICATE_TOTAL_VOLUME}\\
+Time Window & \PH{SYNDICATE_TIME_WINDOW} & Relationship & \PH{SYNDICATE_RELATIONSHIP}
+\end{tabularx}
+
+\vspace{3pt}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}l l c r@{}}
+\toprule
+\textbf{Account} & \textbf{Role} & \textbf{Layer} & \textbf{Risk Index}\\
+\midrule
+\PH{MEMBER_1_ACCOUNT} & \PH{MEMBER_1_ROLE} & \PH{MEMBER_1_LAYER} & \PH{MEMBER_1_RISK_INDEX}\\
+\PH{MEMBER_2_ACCOUNT} & \PH{MEMBER_2_ROLE} & \PH{MEMBER_2_LAYER} & \PH{MEMBER_2_RISK_INDEX}\\
+\PH{MEMBER_3_ACCOUNT} & \PH{MEMBER_3_ROLE} & \PH{MEMBER_3_LAYER} & \PH{MEMBER_3_RISK_INDEX}\\
+\PH{MEMBER_4_ACCOUNT} & \PH{MEMBER_4_ROLE} & \PH{MEMBER_4_LAYER} & \PH{MEMBER_4_RISK_INDEX}\\
+\PH{MEMBER_5_ACCOUNT} & \PH{MEMBER_5_ROLE} & \PH{MEMBER_5_LAYER} & \PH{MEMBER_5_RISK_INDEX}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\NOTE{Analytical classifications describe observed transaction characteristics only and are not legal determinations.}
+
+\SEC{3. EVIDENCE SUMMARY}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}l l X X@{}}
+\toprule
+\textbf{Evidence ID} & \textbf{Type} & \textbf{Reference} & \textbf{Related Finding}\\
+\midrule
+\PH{EVIDENCE_1_ID} & \PH{EVIDENCE_1_TYPE} & \PH{EVIDENCE_1_REFERENCE} & \PH{EVIDENCE_1_FINDING}\\
+\PH{EVIDENCE_2_ID} & \PH{EVIDENCE_2_TYPE} & \PH{EVIDENCE_2_REFERENCE} & \PH{EVIDENCE_2_FINDING}\\
+\PH{EVIDENCE_3_ID} & \PH{EVIDENCE_3_TYPE} & \PH{EVIDENCE_3_REFERENCE} & \PH{EVIDENCE_3_FINDING}\\
+\PH{EVIDENCE_4_ID} & \PH{EVIDENCE_4_TYPE} & \PH{EVIDENCE_4_REFERENCE} & \PH{EVIDENCE_4_FINDING}\\
+\PH{EVIDENCE_5_ID} & \PH{EVIDENCE_5_TYPE} & \PH{EVIDENCE_5_REFERENCE} & \PH{EVIDENCE_5_FINDING}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{3pt}\textbf{INVESTIGATIVE FINDINGS}
+\begin{enumerate}
+\item \PH{FINDING_1}
+\item \PH{FINDING_2}
+\item \PH{FINDING_3}
+\item \PH{FINDING_4}
+\item \PH{FINDING_5}
+\end{enumerate}
+
+\textbf{CONCLUSION.} \PH{CONCLUSION}
+
+\vspace{4pt}\textbf{OFFICER CERTIFICATION}
+
+I certify that this report records the analytical observations and transaction relationships identified from the referenced records, subject to verification against the underlying evidence.
+
+\vspace{7pt}
+\begin{tabularx}{\linewidth}{@{}X X@{}}
+\rule{0.82\linewidth}{0.4pt} & \rule{0.82\linewidth}{0.4pt}\\[-1pt]
+\PH{CERTIFYING_OFFICER_NAME} & Signature\\[7pt]
+\rule{0.82\linewidth}{0.4pt} & \rule{0.82\linewidth}{0.4pt}\\[-1pt]
+\PH{CERTIFYING_OFFICER_RANK} & \PH{CERTIFICATION_DATE}\\[7pt]
+\rule{0.82\linewidth}{0.4pt} & \\
+\PH{CERTIFYING_POLICE_STATION} & \\
+\end{tabularx}
+
+\vfill
+\begin{center}
+\footnotesize\textbf{Document status: Investigative analytical record.}\quad\textit{All bracketed tokens are data placeholders and must be replaced before issuance.}
+\end{center}
+
+\end{document}

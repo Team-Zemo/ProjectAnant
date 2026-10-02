@@ -1,0 +1,199 @@
+\documentclass[9pt,a4paper]{article}
+\usepackage[a4paper,left=14mm,right=14mm,top=12mm,bottom=12mm,headheight=14pt,headsep=5mm,footskip=7mm]{geometry}
+\usepackage{fontspec}
+\usepackage{microtype}
+\usepackage{array,tabularx,booktabs,longtable}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{lastpage}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+\setmainfont{Noto Serif Devanagari}[Script=Devanagari,Language=Hindi]
+\newfontfamily\latinfont{Noto Serif}[Ligatures=TeX]
+\newfontfamily\monofont{Noto Sans Mono}
+\definecolor{ink}{HTML}{202A33}
+\definecolor{rule}{HTML}{65727E}
+\definecolor{paperblue}{HTML}{294B63}
+\definecolor{placeholder}{HTML}{5B6670}
+\definecolor{placeholderbg}{HTML}{EEF1F3}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2pt}
+\renewcommand{\arraystretch}{1.08}
+\setlist[enumerate]{leftmargin=16pt,itemsep=2pt,topsep=2pt}
+
+% All dynamic fields use stable English keys inside [[...]] tokens.
+% An AI/data-population process should replace the exact tokens before issuance.
+\newcommand{\PH}[1]{\textcolor{placeholder}{\fboxsep=1pt\colorbox{placeholderbg}{\monofont\scriptsize\detokenize{[[#1]]}}}}
+\newcommand{\SEC}[1]{\vspace{4pt}{\color{paperblue}\large\bfseries #1}\par\vspace{2pt}\hrule height 0.55pt\vspace{3pt}}
+\newcommand{\NOTE}[1]{\textcolor{rule}{\footnotesize\textit{#1}}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textbf{प्रोजेक्ट अनंत} \;|\; ऑपरेशन अभेद्य-चक्र}
+\fancyhead[R]{\small\textit{गोपनीय — जांच अभिलेख}}
+\fancyfoot[L]{\small वित्तीय साइबर अपराध जांच रिपोर्ट}
+\fancyfoot[R]{\small पृष्ठ \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\begin{document}
+
+\begin{center}
+{\fontsize{13}{15}\selectfont\bfseries वित्तीय साइबर अपराध}\par
+{\fontsize{13}{15}\selectfont\bfseries लेनदेन श्रृंखला एवं सिंडिकेट विश्लेषण रिपोर्ट}\par
+{\small प्रोजेक्ट अनंत — विश्लेषण रिपोर्ट पहचानकर्ता: \PH{REPORT_ID}}\par
+\vspace{3pt}\rule{0.92\linewidth}{0.7pt}
+\end{center}
+
+\SEC{1. प्रकरण / घटना सारांश}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{29mm} X >{\bfseries}p{29mm} X@{}}
+प्राथमिकी क्रमांक & \PH{FIR_NUMBER} & प्रकरण क्रमांक & \PH{CASE_NUMBER}\\
+अधिकारी का नाम & \PH{OFFICER_NAME} & थाना & \PH{POLICE_STATION}\\
+जिला & \PH{DISTRICT} & दिनांक & \PH{REPORT_DATE}\\
+रिपोर्ट पहचानकर्ता & \PH{REPORT_ID} & जांच अवधि & \PH{INVESTIGATION_PERIOD}
+\end{tabularx}
+
+\vspace{3pt}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{30mm} X >{\bfseries}p{30mm} X@{}}
+पीड़ित खाता & \PH{VICTIM_ACCOUNT_MASKED} & बैंक & \PH{VICTIM_BANK}\\
+धोखाधड़ी राशि & \PH{FRAUD_AMOUNT} & प्रारंभिक UTR & \PH{INITIAL_UTR}\\
+प्रारंभिक लेनदेन & \PH{INITIAL_TRANSACTION_DATETIME} & जांच स्रोत & \PH{INVESTIGATION_SOURCE}
+\end{tabularx}
+
+\vspace{3pt}
+\textbf{घटना सारांश।} \PH{INCIDENT_SUMMARY}
+
+\vspace{3pt}
+\textbf{प्रमुख निष्कर्ष}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}l r@{\hspace{14mm}}l r@{}}
+विश्लेषित लेनदेन & \PH{TRANSACTIONS_ANALYSED} & विश्लेषित खाते & \PH{ACCOUNTS_ANALYSED}\\
+संदिग्ध म्यूल खाते & \PH{SUSPECTED_MULES} & सिंडिकेट & \PH{SYNDICATES_IDENTIFIED}\\
+अनुसरित कुल राशि & \PH{TOTAL_TRACED_AMOUNT} & अधिकतम हॉप & \PH{MAXIMUM_HOP}
+\end{tabularx}
+\normalsize
+
+\SEC{धनराशि प्रवाह}
+\NOTE{जांचाधीन लेनदेन श्रृंखला से संबंधित पुनर्निर्मित प्रवाह। तालिका ही मूल अभिलेख है; कोई ग्राफिकल नेटवर्क प्रस्तुति उपयोग नहीं की गई है।}
+
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}c l l l r c l@{}}
+\toprule
+\textbf{हॉप} & \textbf{समय} & \textbf{प्रेषक} & \textbf{प्राप्तकर्ता} & \textbf{राशि} & \textbf{स्तर} & \textbf{UTR / संदर्भ}\\
+\midrule
+1 & \PH{TX1_TIME} & \PH{TX1_FROM} & \PH{TX1_TO} & \PH{TX1_AMOUNT} & \PH{TX1_LAYER} & \PH{TX1_UTR}\\
+2 & \PH{TX2_TIME} & \PH{TX2_FROM} & \PH{TX2_TO} & \PH{TX2_AMOUNT} & \PH{TX2_LAYER} & \PH{TX2_UTR}\\
+3 & \PH{TX3_TIME} & \PH{TX3_FROM} & \PH{TX3_TO} & \PH{TX3_AMOUNT} & \PH{TX3_LAYER} & \PH{TX3_UTR}\\
+4 & \PH{TX4_TIME} & \PH{TX4_FROM} & \PH{TX4_TO} & \PH{TX4_AMOUNT} & \PH{TX4_LAYER} & \PH{TX4_UTR}\\
+5 & \PH{TX5_TIME} & \PH{TX5_FROM} & \PH{TX5_TO} & \PH{TX5_AMOUNT} & \PH{TX5_LAYER} & \PH{TX5_UTR}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\NOTE{केवल जांचाधीन प्रवाह के लिए आवश्यक लेनदेन पंक्तियां रखें। असंबंधित लेनदेन शामिल न करें।}
+
+\newpage
+\SEC{2. संदिग्ध खाते का विश्लेषण}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}p{17mm} p{25mm} c p{22mm} p{21mm} p{21mm} X@{}}
+\toprule
+\textbf{खाता} & \textbf{बैंक} & \textbf{स्तर} & \textbf{जोखिम सूचकांक} & \textbf{आवक} & \textbf{जावक} & \textbf{आवक / जावक समकक्ष}\\
+\midrule
+\PH{A1_ACCOUNT} & \PH{A1_BANK} & \PH{A1_LAYER} & \PH{A1_RISK} & \PH{A1_INFLOW} & \PH{A1_OUTFLOW} & \PH{A1_IN_CTRP} / \PH{A1_OUT_CTRP}\\
+\PH{A2_ACCOUNT} & \PH{A2_BANK} & \PH{A2_LAYER} & \PH{A2_RISK} & \PH{A2_INFLOW} & \PH{A2_OUTFLOW} & \PH{A2_IN_CTRP} / \PH{A2_OUT_CTRP}\\
+\PH{A3_ACCOUNT} & \PH{A3_BANK} & \PH{A3_LAYER} & \PH{A3_RISK} & \PH{A3_INFLOW} & \PH{A3_OUTFLOW} & \PH{A3_IN_CTRP} / \PH{A3_OUT_CTRP}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{3pt}\textbf{विश्लेषणात्मक संकेतक}\par
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}X r@{}}
+\toprule
+\textbf{संकेतक} & \textbf{मान}\\
+\midrule
+टर्मिनल कैश-आउट & \PH{INDICATOR_TERMINAL_CASHOUT}\\
+साइबर ऑटोमेशन & \PH{INDICATOR_CYBER_AUTOMATION}\\
+टर्नओवर संरक्षण & \PH{INDICATOR_TURNOVER_CONSERVATION}\\
+समयगत वेग & \PH{INDICATOR_TEMPORAL_VELOCITY}\\
+निष्क्रियता-विस्फोट & \PH{INDICATOR_DORMANCY_BURST}\\
+समकक्ष असममिति & \PH{INDICATOR_COUNTERPARTY_ASYMMETRY}\\
+संरचनात्मक फैन पैटर्न & \PH{INDICATOR_STRUCTURAL_FAN_PATTERN}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{3pt}\textbf{अवलोकित व्याख्या।} \PH{ACCOUNT_INTERPRETATION}
+
+\SEC{सिंडिकेट विश्लेषण}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{25mm} X >{\bfseries}p{25mm} X@{}}
+सिंडिकेट पहचानकर्ता & \PH{SYNDICATE_ID} & प्रारूप & \PH{SYNDICATE_ARCHETYPE}\\
+सदस्य & \PH{SYNDICATE_MEMBERS} & कुल मात्रा & \PH{SYNDICATE_TOTAL_VOLUME}\\
+समय अवधि & \PH{SYNDICATE_TIME_WINDOW} & संबंध & \PH{SYNDICATE_RELATIONSHIP}
+\end{tabularx}
+
+\vspace{3pt}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}l l c r@{}}
+\toprule
+\textbf{खाता} & \textbf{भूमिका} & \textbf{स्तर} & \textbf{जोखिम सूचकांक}\\
+\midrule
+\PH{MEMBER_1_ACCOUNT} & \PH{MEMBER_1_ROLE} & \PH{MEMBER_1_LAYER} & \PH{MEMBER_1_RISK_INDEX}\\
+\PH{MEMBER_2_ACCOUNT} & \PH{MEMBER_2_ROLE} & \PH{MEMBER_2_LAYER} & \PH{MEMBER_2_RISK_INDEX}\\
+\PH{MEMBER_3_ACCOUNT} & \PH{MEMBER_3_ROLE} & \PH{MEMBER_3_LAYER} & \PH{MEMBER_3_RISK_INDEX}\\
+\PH{MEMBER_4_ACCOUNT} & \PH{MEMBER_4_ROLE} & \PH{MEMBER_4_LAYER} & \PH{MEMBER_4_RISK_INDEX}\\
+\PH{MEMBER_5_ACCOUNT} & \PH{MEMBER_5_ROLE} & \PH{MEMBER_5_LAYER} & \PH{MEMBER_5_RISK_INDEX}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\NOTE{विश्लेषणात्मक वर्गीकरण केवल देखे गए लेनदेन व्यवहार को दर्शाता है और किसी कानूनी निष्कर्ष का निर्धारण नहीं करता।}
+
+\SEC{3. साक्ष्य सारांश}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}l l X X@{}}
+\toprule
+\textbf{साक्ष्य पहचानकर्ता} & \textbf{प्रकार} & \textbf{संदर्भ} & \textbf{संबंधित निष्कर्ष}\\
+\midrule
+\PH{EVIDENCE_1_ID} & \PH{EVIDENCE_1_TYPE} & \PH{EVIDENCE_1_REFERENCE} & \PH{EVIDENCE_1_FINDING}\\
+\PH{EVIDENCE_2_ID} & \PH{EVIDENCE_2_TYPE} & \PH{EVIDENCE_2_REFERENCE} & \PH{EVIDENCE_2_FINDING}\\
+\PH{EVIDENCE_3_ID} & \PH{EVIDENCE_3_TYPE} & \PH{EVIDENCE_3_REFERENCE} & \PH{EVIDENCE_3_FINDING}\\
+\PH{EVIDENCE_4_ID} & \PH{EVIDENCE_4_TYPE} & \PH{EVIDENCE_4_REFERENCE} & \PH{EVIDENCE_4_FINDING}\\
+\PH{EVIDENCE_5_ID} & \PH{EVIDENCE_5_TYPE} & \PH{EVIDENCE_5_REFERENCE} & \PH{EVIDENCE_5_FINDING}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\vspace{3pt}\textbf{जांच संबंधी निष्कर्ष}
+\begin{enumerate}
+\item \PH{FINDING_1}
+\item \PH{FINDING_2}
+\item \PH{FINDING_3}
+\item \PH{FINDING_4}
+\item \PH{FINDING_5}
+\end{enumerate}
+
+\textbf{निष्कर्ष।} \PH{CONCLUSION}
+
+\vspace{4pt}\textbf{अधिकारी प्रमाणन}
+
+मैं प्रमाणित करता/करती हूँ कि यह रिपोर्ट संदर्भित अभिलेखों से पहचाने गए विश्लेषणात्मक अवलोकनों एवं लेनदेन संबंधों को दर्ज करती है तथा मूल साक्ष्यों के विरुद्ध सत्यापन के अधीन है।
+
+\vspace{7pt}
+\begin{tabularx}{\linewidth}{@{}X X@{}}
+\rule{0.82\linewidth}{0.4pt} & \rule{0.82\linewidth}{0.4pt}\\[-1pt]
+\PH{CERTIFYING_OFFICER_NAME} & हस्ताक्षर\\[7pt]
+\rule{0.82\linewidth}{0.4pt} & \rule{0.82\linewidth}{0.4pt}\\[-1pt]
+\PH{CERTIFYING_OFFICER_RANK} & \PH{CERTIFICATION_DATE}\\[7pt]
+\rule{0.82\linewidth}{0.4pt} & \\
+\PH{CERTIFYING_POLICE_STATION} & \\
+\end{tabularx}
+
+\vfill
+\begin{center}
+\footnotesize\textbf{दस्तावेज स्थिति: जांच संबंधी विश्लेषणात्मक अभिलेख।}\quad\textit{सभी [[...]] टोकन डेटा प्लेसहोल्डर हैं और जारी करने से पहले बदले जाने चाहिए।}
+\end{center}
+
+\end{document}
