@@ -29,6 +29,7 @@ import {
   formatDateTime,
   type LegalSummaryResponse,
 } from "../../services/legalAi";
+import { MP_POLICE_WATERMARK_DATA_URL } from "../../assets/watermarkBase64";
 import {
   ReportLanguage,
   LatexFormValues,
@@ -277,7 +278,10 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
               h2 { font-size: 10.5pt; border-bottom: 1px solid #000; padding-bottom: 3px; margin-top: 14px; }
             </style>
           </head>
-          <body>
+          <body style="position: relative;">
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140mm; height: 140mm; pointer-events: none; z-index: -1; opacity: 0.14; display: flex; align-items: center; justify-content: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+              <img src="${MP_POLICE_WATERMARK_DATA_URL}" style="width: 100%; height: auto;" alt="Watermark" />
+            </div>
             <h1>FORENSIC EVIDENCE SCHEDULE TABLES</h1>
             <h2>SCHEDULE A: ACCOUNTS RECOMMENDED FOR IMMEDIATE FREEZE (${summaryData.freeze_accounts?.length || 0})</h2>
             <table>
@@ -339,7 +343,7 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
             <style>
               @page { size: A4 portrait; margin: 18mm 15mm; }
               * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-              body { font-family: "Times New Roman", Times, serif; font-size: 10.5pt; line-height: 1.45; color: #000; margin: 0; padding: 0; }
+              body { font-family: "Times New Roman", Times, serif; font-size: 10.5pt; line-height: 1.45; color: #000; margin: 0; padding: 0; position: relative; }
               .police-letterhead { text-align: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 14px; }
               h1 { font-size: 12pt; text-align: center; }
               h2, h3, h4 { font-family: Arial, sans-serif; font-size: 10pt; margin: 10pt 0 4pt 0; }
@@ -348,7 +352,10 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
               th { background: #f2f2f2; }
             </style>
           </head>
-          <body>
+          <body style="position: relative;">
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140mm; height: 140mm; pointer-events: none; z-index: -1; opacity: 0.14; display: flex; align-items: center; justify-content: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+              <img src="${MP_POLICE_WATERMARK_DATA_URL}" style="width: 100%; height: auto;" alt="Watermark" />
+            </div>
             <div class="police-letterhead">
               <div style="font-size: 8.5pt; font-weight: bold; letter-spacing: 1px;">GOVERNMENT OF MADHYA PRADESH · POLICE DEPARTMENT</div>
               <div style="font-size: 13pt; font-weight: 800; margin-top: 3px;">${policeStation}</div>
@@ -967,9 +974,20 @@ Include chronological entry date, crime number ${crimeNo}, investigative finding
                       <Code2 className="w-4 h-4 text-primary" />
                       <span>Compiled LaTeX Document: <strong>{reportLang === "hi" ? "project_anant_compact_report_hindi.tex" : "project_anant_compact_report_english.tex"}</strong></span>
                     </div>
-                    <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-                      XeLaTeX Compilable
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href="/mp_police_watermark.png"
+                        download="mp_police_watermark.png"
+                        className="text-[11px] font-sans font-medium text-primary hover:underline flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded border border-primary/20"
+                        title="Download mp_police_watermark.png to compile locally with xelatex"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Watermark Asset (.png)</span>
+                      </a>
+                      <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                        XeLaTeX Compilable
+                      </span>
+                    </div>
                   </div>
                   <pre className="p-4 bg-muted/30 rounded-xl overflow-x-auto text-[11px] font-mono leading-relaxed text-foreground max-h-[65vh] select-all">
                     {compiledLatexSource}

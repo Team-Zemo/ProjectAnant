@@ -3,6 +3,7 @@
 // deterministic graph facts binding, form input overrides, and AI-only narrative generation.
 
 import { LegalSummaryResponse, formatINR, formatDateTime } from "./legalAi";
+import { MP_POLICE_WATERMARK_DATA_URL } from "../assets/watermarkBase64";
 
 export type ReportLanguage = "en" | "hi";
 
@@ -51,7 +52,9 @@ export interface LatexFormValues {
 
 // ── RAW LATEX TEMPLATES (Directly from Docs/) ────────────────────────────────
 
-export const LATEX_TEMPLATE_ENGLISH = `\\documentclass[9pt,a4paper]{article}
+export const LATEX_TEMPLATE_ENGLISH = `% Official Madhya Pradesh Police Analytical Investigation Record
+% Note: Ensure 'mp_police_watermark.png' is placed in the same working directory for the official background seal.
+\\documentclass[9pt,a4paper]{article}
 \\usepackage[a4paper,left=14mm,right=14mm,top=12mm,bottom=12mm,headheight=14pt,headsep=5mm,footskip=7mm]{geometry}
 \\usepackage{fontspec}
 \\usepackage{microtype}
@@ -62,6 +65,18 @@ export const LATEX_TEMPLATE_ENGLISH = `\\documentclass[9pt,a4paper]{article}
 \\usepackage{lastpage}
 \\usepackage{hyperref}
 \\hypersetup{hidelinks}
+\\usepackage{graphicx}
+\\usepackage{tikz}
+\\usepackage{eso-pic}
+
+% Official Madhya Pradesh Police Insignia Watermark
+\\AddToShipoutPictureBG{%
+  \\begin{tikzpicture}[remember picture, overlay]
+    \\node[opacity=0.15] at (current page.center) {
+      \\includegraphics[width=125mm,keepaspectratio]{mp_police_watermark.png}
+    };
+  \\end{tikzpicture}%
+}
 
 \\setmainfont{Noto Serif}[Ligatures=TeX]
 \\definecolor{ink}{HTML}{202A33}
@@ -248,7 +263,9 @@ I certify that this report records the analytical observations and transaction r
 \\end{document}
 `;
 
-export const LATEX_TEMPLATE_HINDI = `\\documentclass[9pt,a4paper]{article}
+export const LATEX_TEMPLATE_HINDI = `% Official Madhya Pradesh Police Analytical Investigation Record (Hindi)
+% Note: Ensure 'mp_police_watermark.png' is placed in the same working directory for the official background seal.
+\\documentclass[9pt,a4paper]{article}
 \\usepackage[a4paper,left=14mm,right=14mm,top=12mm,bottom=12mm,headheight=14pt,headsep=5mm,footskip=7mm]{geometry}
 \\usepackage{fontspec}
 \\usepackage{microtype}
@@ -259,6 +276,18 @@ export const LATEX_TEMPLATE_HINDI = `\\documentclass[9pt,a4paper]{article}
 \\usepackage{lastpage}
 \\usepackage{hyperref}
 \\hypersetup{hidelinks}
+\\usepackage{graphicx}
+\\usepackage{tikz}
+\\usepackage{eso-pic}
+
+% Official Madhya Pradesh Police Insignia Watermark
+\\AddToShipoutPictureBG{%
+  \\begin{tikzpicture}[remember picture, overlay]
+    \\node[opacity=0.15] at (current page.center) {
+      \\includegraphics[width=125mm,keepaspectratio]{mp_police_watermark.png}
+    };
+  \\end{tikzpicture}%
+}
 
 \\setmainfont{Noto Serif Devanagari}[Script=Devanagari,Language=Hindi]
 \\newfontfamily\\latinfont{Noto Serif}[Ligatures=TeX]
@@ -745,10 +774,18 @@ export function generateCourtHtml(
 ): string {
   const isHi = lang === "hi";
 
+  const watermarkHtml = `
+    <div class="mp-police-watermark" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 135mm; height: 135mm; pointer-events: none; z-index: 0; opacity: 0.15; display: flex; align-items: center; justify-content: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+      <img src="${MP_POLICE_WATERMARK_DATA_URL}" style="width: 100%; height: auto; object-fit: contain; pointer-events: none;" alt="Madhya Pradesh Police Official Seal" />
+    </div>
+  `;
+
   return `
     <div class="latex-document-root" style="font-family: ${isHi ? "'Noto Serif Devanagari', 'Noto Serif', serif" : "'Noto Serif', 'Times New Roman', serif"}; color: #202A33; line-height: 1.35; font-size: 9.5pt;">
       <!-- PAGE 1 -->
       <div class="latex-page" style="page-break-after: always; break-after: always; padding: 14mm 14mm 12mm 14mm; background: #fff; position: relative;">
+        ${watermarkHtml}
+        <div style="position: relative; z-index: 1;">
         <!-- Header -->
         <div style="display: flex; justify-content: space-between; border-bottom: 0.5pt solid #202A33; padding-bottom: 3px; margin-bottom: 12px; font-size: 8pt;">
           <div><strong>${isHi ? "प्रोजेक्ट अनंत" : "PROJECT ANANT"}</strong> | ${isHi ? "ऑपरेशन अभेद्य-चक्र" : "OPERATION ABHEDYA-CHAKRA"}</div>
@@ -887,9 +924,10 @@ export function generateCourtHtml(
             ${isHi ? "केवल जांचाधीन प्रवाह के लिए आवश्यक लेनदेन पंक्तियां रखें। असंबंधित लेनदेन शामिल न करें।" : "Add or remove transaction rows only when required by the investigated trail. Avoid including unrelated transactions."}
           </div>
         </div>
+        </div>
 
         <!-- Page 1 Footer -->
-        <div style="position: absolute; bottom: 8mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between; border-top: 0.4pt solid #202A33; padding-top: 3px; font-size: 7.5pt; color: #444;">
+        <div style="position: absolute; bottom: 8mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between; border-top: 0.4pt solid #202A33; padding-top: 3px; font-size: 7.5pt; color: #444; z-index: 1;">
           <div>${isHi ? "वित्तीय साइबर अपराध जांच रिपोर्ट" : "Financial Cybercrime Investigation Report"}</div>
           <div>${isHi ? "पृष्ठ 1 / 2" : "Page 1 of 2"}</div>
         </div>
@@ -897,6 +935,8 @@ export function generateCourtHtml(
 
       <!-- PAGE 2 -->
       <div class="latex-page" style="padding: 14mm 14mm 12mm 14mm; background: #fff; position: relative;">
+        ${watermarkHtml}
+        <div style="position: relative; z-index: 1;">
         <!-- Header -->
         <div style="display: flex; justify-content: space-between; border-bottom: 0.5pt solid #202A33; padding-bottom: 3px; margin-bottom: 12px; font-size: 8pt;">
           <div><strong>${isHi ? "प्रोजेक्ट अनंत" : "PROJECT ANANT"}</strong> | ${isHi ? "ऑपरेशन अभेद्य-चक्र" : "OPERATION ABHEDYA-CHAKRA"}</div>
@@ -1101,9 +1141,10 @@ export function generateCourtHtml(
             </tr>
           </table>
         </div>
+        </div>
 
         <!-- Page 2 Footer -->
-        <div style="position: absolute; bottom: 8mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between; border-top: 0.4pt solid #202A33; padding-top: 3px; font-size: 7.5pt; color: #444;">
+        <div style="position: absolute; bottom: 8mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between; border-top: 0.4pt solid #202A33; padding-top: 3px; font-size: 7.5pt; color: #444; z-index: 1;">
           <div>${isHi ? "वित्तीय साइबर अपराध जांच रिपोर्ट" : "Financial Cybercrime Investigation Report"}</div>
           <div>${isHi ? "पृष्ठ 2 / 2" : "Page 2 of 2"}</div>
         </div>
