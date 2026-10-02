@@ -1,0 +1,148 @@
+% Official Madhya Pradesh Police Case Diary
+% Maintained under Section 172 Cr.P.C. / Section 168 Bharatiya Nagarik Suraksha Sanhita (BNSS), 2023
+% Note: Ensure 'mp_police_watermark.png' is placed in the same working directory for the official background seal.
+\documentclass[9pt,a4paper]{article}
+\usepackage[a4paper,left=14mm,right=14mm,top=12mm,bottom=12mm,headheight=14pt,headsep=5mm,footskip=7mm]{geometry}
+\usepackage{fontspec}
+\usepackage{microtype}
+\usepackage{array,tabularx,booktabs,longtable}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{lastpage}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{eso-pic}
+
+% Official Madhya Pradesh Police Insignia Watermark
+\AddToShipoutPictureBG{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \node[opacity=0.15] at (current page.center) {
+      \includegraphics[width=125mm,keepaspectratio]{mp_police_watermark.png}
+    };
+  \end{tikzpicture}%
+}
+
+\setmainfont{Noto Serif}[Ligatures=TeX]
+\definecolor{ink}{HTML}{202A33}
+\definecolor{rule}{HTML}{65727E}
+\definecolor{paperblue}{HTML}{294B63}
+\definecolor{placeholder}{HTML}{5B6670}
+\definecolor{placeholderbg}{HTML}{EEF1F3}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2.5pt}
+\renewcommand{\arraystretch}{1.1}
+\setlist[enumerate]{leftmargin=16pt,itemsep=2pt,topsep=2pt}
+
+\newcommand{\PH}[1]{\textcolor{placeholder}{\fboxsep=1pt\colorbox{placeholderbg}{\texttt{\detokenize{[[#1]]}}}}}
+\newcommand{\SEC}[1]{\vspace{4pt}{\color{paperblue}\large\bfseries #1}\par\vspace{2pt}\hrule height 0.55pt\vspace{3pt}}
+\newcommand{\NOTE}[1]{\textcolor{rule}{\footnotesize\textit{#1}}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textbf{POLICE DEPARTMENT, MADHYA PRADESH} \;|\; CASE DIARY}
+\fancyhead[R]{\small\textit{Confidential — Investigation Record U/S 172 Cr.P.C.}}
+\fancyfoot[L]{\small Chronological Case Diary · Crime No. \PH{CRIME_NO}}
+\fancyfoot[R]{\small Page \thepage\ of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\begin{document}
+
+\begin{center}
+{\fontsize{8.5}{10}\selectfont\textbf{GOVERNMENT OF MADHYA PRADESH \;\textperiodcentered\; POLICE DEPARTMENT}}\par
+\vspace{1pt}
+{\fontsize{13}{15}\selectfont\bfseries CHRONOLOGICAL POLICE CASE DIARY}\par
+{\small Maintained under Section 172 Cr.P.C. / Section 168 Bharatiya Nagarik Suraksha Sanhita (BNSS), 2023}\par
+{\footnotesize Project Anant Cyber Forensics \;|\; PS: \PH{POLICE_STATION}}\par
+\vspace{3pt}\rule{0.92\linewidth}{0.7pt}
+\end{center}
+
+\SEC{CASE PARTICULARS \& ADMINISTRATIVE RECORD}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{28mm} X >{\bfseries}p{28mm} X@{}}
+Police Station & \PH{POLICE_STATION} & District & \PH{DISTRICT}\\
+Crime / FIR No. & \PH{CRIME_NO} & Date of Entry & \PH{DATE_OF_ENTRY}\\
+Sections Applied & \PH{SECTIONS_APPLIED} & Investigating Officer & \PH{IO_NAME}\\
+Case Classification & \multicolumn{3}{X}{\PH{CASE_CLASSIFICATION}}
+\end{tabularx}
+
+\SEC{1. GENESIS OF INCIDENT \& VICTIM PARTICULARS}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{28mm} X >{\bfseries}p{28mm} X@{}}
+Victim Account & \PH{VICTIM_ACCOUNT} & Originating Bank & \PH{VICTIM_BANK}\\
+Fraud Quantum & \textbf{\PH{FRAUD_AMOUNT}} & Initial Ref / UTR & \PH{INITIAL_UTR}\\
+Dispersal Pattern & \multicolumn{3}{X}{\PH{DISPERSAL_SUMMARY}}
+\end{tabularx}
+
+\vspace{3pt}
+\textbf{Case Diary Narrative Record.} \PH{INCIDENT_DIARY_TEXT}
+
+\SEC{2. MULTI-LAYER MONEY TRAIL AUDIT}
+\NOTE{Reconstructed transaction sequence across primary siphoning nodes. Table reflects verified banking telemetry.}
+
+\vspace{2pt}
+\textbf{Primary Layer 1 Mule Inflows (Immediate Siphoning)}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}c l l l r l@{}}
+\toprule
+\textbf{\#} & \textbf{Txn ID / Ref} & \textbf{Beneficiary Account} & \textbf{Bank} & \textbf{Amount} & \textbf{Timestamp}\\
+\midrule
+1 & \PH{L1_TX1_ID} & \PH{L1_TX1_ACC} & \PH{L1_TX1_BANK} & \PH{L1_TX1_AMOUNT} & \PH{L1_TX1_TIME}\\
+2 & \PH{L1_TX2_ID} & \PH{L1_TX2_ACC} & \PH{L1_TX2_BANK} & \PH{L1_TX2_AMOUNT} & \PH{L1_TX2_TIME}\\
+3 & \PH{L1_TX3_ID} & \PH{L1_TX3_ACC} & \PH{L1_TX3_BANK} & \PH{L1_TX3_AMOUNT} & \PH{L1_TX3_TIME}\\
+4 & \PH{L1_TX4_ID} & \PH{L1_TX4_ACC} & \PH{L1_TX4_BANK} & \PH{L1_TX4_AMOUNT} & \PH{L1_TX4_TIME}\\
+5 & \PH{L1_TX5_ID} & \PH{L1_TX5_ACC} & \PH{L1_TX5_BANK} & \PH{L1_TX5_AMOUNT} & \PH{L1_TX5_TIME}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\newpage
+
+\SEC{3. ACCOUNTS PRIORITIZED FOR STATUTORY FREEZE}
+\NOTE{Prioritized beneficiaries identified by AI graph intelligence for lien marking under Sec 91 CrPC / Sec 94 BNSS.}
+
+\vspace{2pt}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}c p{24mm} p{26mm} c c r X@{}}
+\toprule
+\textbf{\#} & \textbf{Account ID} & \textbf{Bank} & \textbf{Layer} & \textbf{Mule Score} & \textbf{Est. Holding} & \textbf{Forensic Markers}\\
+\midrule
+1 & \PH{FREEZE_1_ACC} & \PH{FREEZE_1_BANK} & \PH{FREEZE_1_LAYER} & \PH{FREEZE_1_SCORE} & \PH{FREEZE_1_HOLDING} & \PH{FREEZE_1_MARKERS}\\
+2 & \PH{FREEZE_2_ACC} & \PH{FREEZE_2_BANK} & \PH{FREEZE_2_LAYER} & \PH{FREEZE_2_SCORE} & \PH{FREEZE_2_HOLDING} & \PH{FREEZE_2_MARKERS}\\
+3 & \PH{FREEZE_3_ACC} & \PH{FREEZE_3_BANK} & \PH{FREEZE_3_LAYER} & \PH{FREEZE_3_SCORE} & \PH{FREEZE_3_HOLDING} & \PH{FREEZE_3_MARKERS}\\
+4 & \PH{FREEZE_4_ACC} & \PH{FREEZE_4_BANK} & \PH{FREEZE_4_LAYER} & \PH{FREEZE_4_SCORE} & \PH{FREEZE_4_HOLDING} & \PH{FREEZE_4_MARKERS}\\
+5 & \PH{FREEZE_5_ACC} & \PH{FREEZE_5_BANK} & \PH{FREEZE_5_LAYER} & \PH{FREEZE_5_SCORE} & \PH{FREEZE_5_HOLDING} & \PH{FREEZE_5_MARKERS}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\SEC{4. INVESTIGATIVE INSTRUCTIONS \& NEXT STEPS}
+\begin{enumerate}
+\item \PH{STEP_1}
+\item \PH{STEP_2}
+\item \PH{STEP_3}
+\item \PH{STEP_4}
+\end{enumerate}
+
+\vspace{8pt}
+\textbf{RECORDING OFFICER CERTIFICATION}
+
+Certified that this Case Diary entry accurately records the chronological investigation steps, forensic telemetry, and statutory preservation requisitions initiated on this date in respect of Crime No. \PH{CRIME_NO}.
+
+\vspace{10pt}
+\begin{tabularx}{\linewidth}{@{}X X@{}}
+\rule{0.82\linewidth}{0.4pt} & \rule{0.82\linewidth}{0.4pt}\\[-1pt]
+\PH{IO_NAME} & Signature\\[7pt]
+\rule{0.82\linewidth}{0.4pt} & \rule{0.82\linewidth}{0.4pt}\\[-1pt]
+\PH{IO_RANK} & \PH{DATE_OF_ENTRY}\\[7pt]
+\rule{0.82\linewidth}{0.4pt} & \\
+\PH{POLICE_STATION} & \\
+\end{tabularx}
+
+\vfill
+\begin{center}
+\footnotesize\textbf{Confidential Case Record under Section 172 Cr.P.C.}\quad\textit{All facts certified against underlying banking transaction records.}
+\end{center}
+
+\end{document}

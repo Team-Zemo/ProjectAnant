@@ -1,0 +1,150 @@
+% Official Madhya Pradesh Police Case Diary (Hindi)
+% Maintained under Section 172 Cr.P.C. / Section 168 Bharatiya Nagarik Suraksha Sanhita (BNSS), 2023
+% Note: Ensure 'mp_police_watermark.png' is placed in the same working directory for the official background seal.
+\documentclass[9pt,a4paper]{article}
+\usepackage[a4paper,left=14mm,right=14mm,top=12mm,bottom=12mm,headheight=14pt,headsep=5mm,footskip=7mm]{geometry}
+\usepackage{fontspec}
+\usepackage{microtype}
+\usepackage{array,tabularx,booktabs,longtable}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{lastpage}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{eso-pic}
+
+% Official Madhya Pradesh Police Insignia Watermark
+\AddToShipoutPictureBG{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \node[opacity=0.15] at (current page.center) {
+      \includegraphics[width=125mm,keepaspectratio]{mp_police_watermark.png}
+    };
+  \end{tikzpicture}%
+}
+
+\setmainfont{Noto Serif Devanagari}[Script=Devanagari,Language=Hindi]
+\newfontfamily\latinfont{Noto Serif}[Ligatures=TeX]
+\newfontfamily\monofont{Noto Sans Mono}
+\definecolor{ink}{HTML}{202A33}
+\definecolor{rule}{HTML}{65727E}
+\definecolor{paperblue}{HTML}{294B63}
+\definecolor{placeholder}{HTML}{5B6670}
+\definecolor{placeholderbg}{HTML}{EEF1F3}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2.5pt}
+\renewcommand{\arraystretch}{1.1}
+\setlist[enumerate]{leftmargin=16pt,itemsep=2pt,topsep=2pt}
+
+\newcommand{\PH}[1]{\textcolor{placeholder}{\fboxsep=1pt\colorbox{placeholderbg}{\monofont\scriptsize\detokenize{[[#1]]}}}}
+\newcommand{\SEC}[1]{\vspace{4pt}{\color{paperblue}\large\bfseries #1}\par\vspace{2pt}\hrule height 0.55pt\vspace{3pt}}
+\newcommand{\NOTE}[1]{\textcolor{rule}{\footnotesize\textit{#1}}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textbf{मध्य प्रदेश पुलिस विभाग} \;|\; केस डायरी}
+\fancyhead[R]{\small\textit{गोपनीय — प्रकरण अभिलेख धारा 172 दं.प्र.सं.}}
+\fancyfoot[L]{\small कालानुक्रमिक केस डायरी · अपराध क्रमांक \PH{CRIME_NO}}
+\fancyfoot[R]{\small पृष्ठ \thepage\ / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\begin{document}
+
+\begin{center}
+{\fontsize{8.5}{10}\selectfont\textbf{मध्य प्रदेश शासन \;\\textperiodcentered\; पुलिस विभाग}}\par
+\vspace{1pt}
+{\fontsize{13}{15}\selectfont\bfseries कालानुक्रमिक पुलिस केस डायरी}\par
+{\small धारा 172 दण्ड प्रक्रिया संहिता, 1973 / धारा 168 भारतीय नागरिक सुरक्षा संहिता (BNSS), 2023}\par
+{\footnotesize प्रोजेक्ट अनंत साइबर फॉरेंसिक \;|\; थाना: \PH{POLICE_STATION}}\par
+\vspace{3pt}\rule{0.92\linewidth}{0.7pt}
+\end{center}
+
+\SEC{प्रकरण विवरण एवं प्रशासनिक अभिलेख}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{28mm} X >{\bfseries}p{28mm} X@{}}
+थाना & \PH{POLICE_STATION} & जिला & \PH{DISTRICT}\\
+अपराध / प्राथमिकी क्र. & \PH{CRIME_NO} & प्रविष्टि दिनांक & \PH{DATE_OF_ENTRY}\\
+लागू धाराएं & \PH{SECTIONS_APPLIED} & विवेचना अधिकारी & \PH{IO_NAME}\\
+प्रकरण वर्गीकरण & \multicolumn{3}{X}{\PH{CASE_CLASSIFICATION}}
+\end{tabularx}
+
+\SEC{1. घटना का मूल एवं पीड़ित का विवरण}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{28mm} X >{\bfseries}p{28mm} X@{}}
+पीड़ित खाता & \PH{VICTIM_ACCOUNT} & मूल बैंक & \PH{VICTIM_BANK}\\
+धोखाधड़ी राशि & \textbf{\PH{FRAUD_AMOUNT}} & प्रारंभिक संदर्भ / UTR & \PH{INITIAL_UTR}\\
+प्रवाह स्वरूप & \multicolumn{3}{X}{\PH{DISPERSAL_SUMMARY}}
+\end{tabularx}
+
+\vspace{3pt}
+\textbf{केस डायरी दैनंदिनी विवरण.} \PH{INCIDENT_DIARY_TEXT}
+
+\SEC{2. बहु-स्तरीय धनराशि प्रवाह विश्लेषण}
+\NOTE{प्राथमिक निकासी खातों में पुनर्निर्मित लेनदेन प्रवाह। तालिका बैंक फॉरेंसिक से सत्यापित है।}
+
+\vspace{2pt}
+\textbf{प्रथम स्तर (Layer 1) प्राथमिक म्यूल आवक (त्वरित निकासी)}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}c l l l r l@{}}
+\toprule
+\textbf{\#} & \textbf{लेनदेन ID} & \textbf{लाभार्थी खाता} & \textbf{बैंक} & \textbf{राशि} & \textbf{समय}\\
+\midrule
+1 & \PH{L1_TX1_ID} & \PH{L1_TX1_ACC} & \PH{L1_TX1_BANK} & \PH{L1_TX1_AMOUNT} & \PH{L1_TX1_TIME}\\
+2 & \PH{L1_TX2_ID} & \PH{L1_TX2_ACC} & \PH{L1_TX2_BANK} & \PH{L1_TX2_AMOUNT} & \PH{L1_TX2_TIME}\\
+3 & \PH{L1_TX3_ID} & \PH{L1_TX3_ACC} & \PH{L1_TX3_BANK} & \PH{L1_TX3_AMOUNT} & \PH{L1_TX3_TIME}\\
+4 & \PH{L1_TX4_ID} & \PH{L1_TX4_ACC} & \PH{L1_TX4_BANK} & \PH{L1_TX4_AMOUNT} & \PH{L1_TX4_TIME}\\
+5 & \PH{L1_TX5_ID} & \PH{L1_TX5_ACC} & \PH{L1_TX5_BANK} & \PH{L1_TX5_AMOUNT} & \PH{L1_TX5_TIME}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\newpage
+
+\SEC{3. वैधानिक रोक (फ्रीज) हेतु प्राथमिकता प्राप्त खाते}
+\NOTE{धारा 91 दं.प्र.सं. / धारा 94 BNSS के अधीन लियन मार्किंग हेतु चिह्नित खाते।}
+
+\vspace{2pt}
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}c p{24mm} p{26mm} c c r X@{}}
+\toprule
+\textbf{\#} & \textbf{खाता क्रमांक} & \textbf{बैंक} & \textbf{स्तर} & \textbf{म्यूल स्कोर} & \textbf{अनुमानित शेष} & \textbf{फॉरेंसिक संकेतक}\\
+\midrule
+1 & \PH{FREEZE_1_ACC} & \PH{FREEZE_1_BANK} & \PH{FREEZE_1_LAYER} & \PH{FREEZE_1_SCORE} & \PH{FREEZE_1_HOLDING} & \PH{FREEZE_1_MARKERS}\\
+2 & \PH{FREEZE_2_ACC} & \PH{FREEZE_2_BANK} & \PH{FREEZE_2_LAYER} & \PH{FREEZE_2_SCORE} & \PH{FREEZE_2_HOLDING} & \PH{FREEZE_2_MARKERS}\\
+3 & \PH{FREEZE_3_ACC} & \PH{FREEZE_3_BANK} & \PH{FREEZE_3_LAYER} & \PH{FREEZE_3_SCORE} & \PH{FREEZE_3_HOLDING} & \PH{FREEZE_3_MARKERS}\\
+4 & \PH{FREEZE_4_ACC} & \PH{FREEZE_4_BANK} & \PH{FREEZE_4_LAYER} & \PH{FREEZE_4_SCORE} & \PH{FREEZE_4_HOLDING} & \PH{FREEZE_4_MARKERS}\\
+5 & \PH{FREEZE_5_ACC} & \PH{FREEZE_5_BANK} & \PH{FREEZE_5_LAYER} & \PH{FREEZE_5_SCORE} & \PH{FREEZE_5_HOLDING} & \PH{FREEZE_5_MARKERS}\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\SEC{4. विवेचना अधिकारी के अग्रिम निर्देश एवं कार्रवाई}
+\begin{enumerate}
+\item \PH{STEP_1}
+\item \PH{STEP_2}
+\item \PH{STEP_3}
+\item \PH{STEP_4}
+\end{enumerate}
+
+\vspace{8pt}
+\textbf{विवेचक प्रमाणन}
+
+प्रमाणित किया जाता है कि यह केस डायरी प्रविष्टि अपराध क्रमांक \PH{CRIME_NO} के संबंध में आज दिनांक तक की गई कालानुक्रमिक विवेचना, फॉरेंसिक विश्लेषण एवं वैधानिक कार्रवाई को सत्य रूप से दर्ज करती है।
+
+\vspace{10pt}
+\begin{tabularx}{\linewidth}{@{}X X@{}}
+\rule{0.82\linewidth}{0.4pt} & \rule{0.82\linewidth}{0.4pt}\\[-1pt]
+\PH{IO_NAME} & हस्ताक्षर\\[7pt]
+\rule{0.82\linewidth}{0.4pt} & \rule{0.82\linewidth}{0.4pt}\\[-1pt]
+\PH{IO_RANK} & \PH{DATE_OF_ENTRY}\\[7pt]
+\rule{0.82\linewidth}{0.4pt} & \\
+\PH{POLICE_STATION} & \\
+\end{tabularx}
+
+\vfill
+\begin{center}
+\footnotesize\textbf{धारा 172 दं.प्र.सं. के अधीन गोपनीय प्रकरण अभिलेख।}\quad\textit{समस्त तथ्य बैंकिंग अभिलेखों से सत्यापित हैं।}
+\end{center}
+
+\end{document}

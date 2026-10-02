@@ -9,6 +9,18 @@
 \usepackage{lastpage}
 \usepackage{hyperref}
 \hypersetup{hidelinks}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{eso-pic}
+
+% Official Madhya Pradesh Police Insignia Watermark
+\AddToShipoutPictureBG{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \node[opacity=0.15] at (current page.center) {
+      \includegraphics[width=125mm,keepaspectratio]{mp_police_watermark.png}
+    };
+  \end{tikzpicture}%
+}
 
 \setmainfont{Noto Serif}[Ligatures=TeX]
 \definecolor{ink}{HTML}{202A33}

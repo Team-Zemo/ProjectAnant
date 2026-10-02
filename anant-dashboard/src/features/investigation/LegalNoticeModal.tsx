@@ -39,6 +39,13 @@ import {
   generateCourtHtml,
   fetchAiDeterministicSummaries,
 } from "../../services/latexReport";
+import {
+  CaseDiaryFormValues,
+  getDefaultCaseDiaryValues,
+  compileCaseDiaryTokens,
+  generateCaseDiaryLatex,
+  generateCaseDiaryCourtHtml,
+} from "../../services/caseDiaryLatex";
 
 interface LegalNoticeModalProps {
   isOpen: boolean;
@@ -57,10 +64,15 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [summaryData, setSummaryData] = useState<LegalSummaryResponse | null>(null);
-  const [isEditing, setIsEditing] = useState(false); // for Case Diary
+  const [isEditing, setIsEditing] = useState(false); // for Case Diary markdown edit
   const [copied, setCopied] = useState(false);
 
-  // Case Diary Parameters
+  // Case Diary State (LaTeX)
+  const [caseDiaryLang, setCaseDiaryLang] = useState<ReportLanguage>("en");
+  const [caseDiaryValues, setCaseDiaryValues] = useState<CaseDiaryFormValues>(() =>
+    getDefaultCaseDiaryValues(null, "en")
+  );
+  const [showCaseDiaryTex, setShowCaseDiaryTex] = useState(false);
   const [crimeNo, setCrimeNo] = useState("CR-104/2026");
   const [policeStation, setPoliceStation] = useState("Cyber Crime Police Station, Indore Commissionerate");
   const [ioName, setIoName] = useState("Insp. R. K. Sharma (Cyber Cell)");
@@ -89,6 +101,7 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
         const diary = generateDeterministicCaseDiary(data, crimeNo, policeStation, ioName);
         setCaseDiaryContent(diary);
         setLatexFormValues(getDefaultFormValues(data, reportLang));
+        setCaseDiaryValues(getDefaultCaseDiaryValues(data, caseDiaryLang));
       })
       .catch((err) => {
         console.error("Failed to load legal facts:", err);
@@ -102,7 +115,7 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
     };
   }, [isOpen, accountId]);
 
-  // Language switch handler
+  // Language switch handler for Sec 91 Notice
   const handleLanguageSwitch = (newLang: ReportLanguage) => {
     setReportLang(newLang);
     setLatexFormValues((prev) => {
@@ -116,6 +129,21 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
         policeStation: prev.policeStation || defaults.policeStation,
         district: prev.district || defaults.district,
         reportDate: prev.reportDate || defaults.reportDate,
+      };
+    });
+  };
+
+  // Language switch handler for Case Diary
+  const handleCaseDiaryLanguageSwitch = (newLang: ReportLanguage) => {
+    setCaseDiaryLang(newLang);
+    setCaseDiaryValues((prev) => {
+      const defaults = getDefaultCaseDiaryValues(summaryData, newLang);
+      return {
+        ...defaults,
+        crimeNo: prev.crimeNo || defaults.crimeNo,
+        policeStation: prev.policeStation || defaults.policeStation,
+        district: prev.district || defaults.district,
+        ioName: prev.ioName || defaults.ioName,
       };
     });
   };
@@ -135,6 +163,21 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
     return generateCourtHtml(latexTokens, reportLang);
   }, [latexTokens, reportLang]);
 
+  // Compile tokens for LaTeX Case Diary
+  const caseDiaryTokens = useMemo(() => {
+    return compileCaseDiaryTokens(summaryData, caseDiaryValues, caseDiaryLang);
+  }, [summaryData, caseDiaryValues, caseDiaryLang]);
+
+  // Generate 100% valid compilable Case Diary LaTeX .tex code
+  const compiledCaseDiaryLatex = useMemo(() => {
+    return generateCaseDiaryLatex(caseDiaryTokens, caseDiaryLang);
+  }, [caseDiaryTokens, caseDiaryLang]);
+
+  // Generate 1:1 court-ready Case Diary compiled HTML representation
+  const compiledCaseDiaryCourtHtml = useMemo(() => {
+    return generateCaseDiaryCourtHtml(caseDiaryTokens, caseDiaryLang);
+  }, [caseDiaryTokens, caseDiaryLang]);
+
   // Case Diary Simple Markdown parser
   const caseDiaryHtml = useMemo(() => {
     if (!caseDiaryContent) return "";
@@ -149,10 +192,13 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
       .replace(/\n/gim, '<br />');
   }, [caseDiaryContent]);
 
-  if (!isOpen) return null;
-
   const handleCopy = () => {
-    const textToCopy = activeTab === "sec91_notice" ? compiledLatexSource : caseDiaryContent;
+    const textToCopy =
+      activeTab === "sec91_notice"
+        ? compiledLatexSource
+        : activeTab === "case_diary"
+        ? compiledCaseDiaryLatex
+        : caseDiaryContent;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -162,6 +208,17 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
     if (activeTab === "sec91_notice") {
       const filename = `project_anant_compact_report_${reportLang}_${accountId}_${latexFormValues.reportId}.tex`;
       const blob = new Blob([compiledLatexSource], { type: "application/x-latex;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else if (activeTab === "case_diary") {
+      const filename = `police_case_diary_${caseDiaryLang}_${caseDiaryValues.crimeNo.replace(/[^a-zA-Z0-9]/g, "_")}.tex`;
+      const blob = new Blob([compiledCaseDiaryLatex], { type: "application/x-latex;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -254,6 +311,65 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
           </head>
           <body>
             ${compiledCourtHtml}
+          </body>
+        </html>
+      `;
+      doc.open();
+      doc.write(printHtml);
+      doc.close();
+    } else if (activeTab === "case_diary") {
+      const printHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Police_Case_Diary_${caseDiaryValues.crimeNo.replace(/[^a-zA-Z0-9]/g, "_")}</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Devanagari:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Noto+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
+            <style>
+              @page {
+                size: A4 portrait;
+                margin: 0;
+              }
+              * {
+                box-sizing: border-box;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              html, body {
+                margin: 0;
+                padding: 0;
+                background: #ffffff;
+                color: #202A33;
+              }
+              .latex-document-root {
+                margin: 0;
+                padding: 0;
+              }
+              .latex-page {
+                width: 210mm;
+                min-height: 297mm;
+                height: 297mm;
+                margin: 0;
+                padding: 14mm 14mm 12mm 14mm !important;
+                box-sizing: border-box;
+                page-break-after: always !important;
+                break-after: always !important;
+                position: relative;
+              }
+              table {
+                page-break-inside: avoid;
+                break-inside: avoid;
+              }
+              tr {
+                page-break-inside: avoid;
+                break-inside: avoid;
+              }
+            </style>
+          </head>
+          <body>
+            ${compiledCaseDiaryCourtHtml}
           </body>
         </html>
       `;
@@ -480,7 +596,7 @@ Include chronological entry date, crime number ${crimeNo}, investigative finding
             <button
               onClick={handleCopy}
               className="p-2 rounded-xl border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
-              title={activeTab === "sec91_notice" ? "Copy LaTeX Source (.tex)" : "Copy Content"}
+              title={activeTab === "sec91_notice" ? "Copy Sec 91 LaTeX Source (.tex)" : activeTab === "case_diary" ? "Copy Case Diary LaTeX Source (.tex)" : "Copy Content"}
             >
               {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-foreground" />}
             </button>
@@ -488,7 +604,7 @@ Include chronological entry date, crime number ${crimeNo}, investigative finding
             <button
               onClick={handleDownload}
               className="p-2 rounded-xl border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
-              title={activeTab === "sec91_notice" ? "Download Compiled .tex File" : "Download Markdown"}
+              title={activeTab === "sec91_notice" ? "Download Sec 91 .tex File" : activeTab === "case_diary" ? "Download Case Diary .tex File" : "Download Markdown"}
             >
               <Download className="w-4 h-4 text-foreground" />
             </button>
@@ -528,7 +644,7 @@ Include chronological entry date, crime number ${crimeNo}, investigative finding
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Police Case Diary</span>
+              <span>Police Case Diary (LaTeX)</span>
             </button>
 
             <button
@@ -603,19 +719,47 @@ Include chronological entry date, crime number ${crimeNo}, investigative finding
               </>
             )}
 
-            {/* Case Diary Edit / Preview Toggle */}
+            {/* Case Diary LaTeX Controls */}
             {activeTab === "case_diary" && (
-              <button
-                onClick={() => setIsEditing(!isEditing)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-all cursor-pointer ${
-                  isEditing
-                    ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
-                    : "bg-muted border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {isEditing ? <Eye className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
-                <span>{isEditing ? "Preview Mode" : "Edit Text"}</span>
-              </button>
+              <>
+                {/* Language Switcher */}
+                <div className="flex items-center bg-muted/40 p-0.5 rounded-xl border border-border text-xs font-mono">
+                  <button
+                    onClick={() => handleCaseDiaryLanguageSwitch("en")}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                      caseDiaryLang === "en"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    English
+                  </button>
+                  <button
+                    onClick={() => handleCaseDiaryLanguageSwitch("hi")}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                      caseDiaryLang === "hi"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    हिन्दी
+                  </button>
+                </div>
+
+                {/* LaTeX Source View Toggle */}
+                <button
+                  onClick={() => setShowCaseDiaryTex(!showCaseDiaryTex)}
+                  className={`px-3 py-1 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-all cursor-pointer ${
+                    showCaseDiaryTex
+                      ? "bg-primary/15 border-primary/30 text-primary"
+                      : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Toggle Case Diary raw LaTeX code view"
+                >
+                  <Code2 className="w-3.5 h-3.5" />
+                  <span>{showCaseDiaryTex ? "Court Preview" : "View .tex"}</span>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -1004,34 +1148,42 @@ Include chronological entry date, crime number ${crimeNo}, investigative finding
             </div>
           )}
 
-          {/* TAB 2: POLICE CASE DIARY */}
+          {/* TAB 2: POLICE CASE DIARY (LATEX) */}
           {!loading && activeTab === "case_diary" && (
-            <div className="max-w-4xl mx-auto">
-              {isEditing ? (
-                <textarea
-                  value={caseDiaryContent}
-                  onChange={(e) => setCaseDiaryContent(e.target.value)}
-                  className="w-full h-[65vh] p-4 font-mono text-xs leading-relaxed rounded-2xl bg-card border border-border text-foreground focus:border-primary outline-none resize-none shadow-inner"
-                  placeholder="Edit case diary text..."
-                />
-              ) : (
-                <div className="p-8 sm:p-12 rounded-2xl bg-card border border-border shadow-xl font-serif text-foreground print:border-none print:shadow-none print:p-0">
-                  <div className="text-center border-b-2 border-foreground/80 pb-4 mb-6">
-                    <div className="text-xs uppercase tracking-widest font-sans font-bold text-muted-foreground">
-                      GOVERNMENT OF MADHYA PRADESH · POLICE DEPARTMENT
+            <div className="max-w-4xl mx-auto space-y-6">
+              {showCaseDiaryTex ? (
+                /* Read-Only Syntax Viewer for Generated Case Diary LaTeX */
+                <div className="rounded-2xl border border-border bg-card p-4 space-y-2 shadow-lg">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
+                    <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+                      <Code2 className="w-4 h-4 text-primary" />
+                      <span>Compiled Case Diary LaTeX: <strong>{caseDiaryLang === "hi" ? "police_case_diary_hindi.tex" : "police_case_diary_english.tex"}</strong></span>
                     </div>
-                    <div className="text-lg sm:text-xl font-bold font-sans uppercase tracking-tight text-foreground mt-1">
-                      {policeStation}
-                    </div>
-                    <div className="text-xs font-sans text-muted-foreground mt-0.5">
-                      Indore Police Commissionerate · Pin: 452001 · Email: cybercrime-indore@mp.gov.in
+                    <div className="flex items-center gap-2">
+                      <a
+                        href="/mp_police_watermark.png"
+                        download="mp_police_watermark.png"
+                        className="text-[11px] font-sans font-medium text-primary hover:underline flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded border border-primary/20"
+                        title="Download mp_police_watermark.png to compile locally with xelatex"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Watermark Asset (.png)</span>
+                      </a>
+                      <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                        XeLaTeX Compilable
+                      </span>
                     </div>
                   </div>
-
-                  <div
-                    className="legal-html-content selection:bg-primary/20"
-                    dangerouslySetInnerHTML={{ __html: caseDiaryHtml }}
-                  />
+                  <pre className="p-4 bg-muted/30 rounded-xl overflow-x-auto text-[11px] font-mono leading-relaxed text-foreground max-h-[65vh] select-all">
+                    {compiledCaseDiaryLatex}
+                  </pre>
+                </div>
+              ) : (
+                /* Client-Side Compiled Visual Document Preview */
+                <div className="flex flex-col gap-6 items-center">
+                  <div className="w-full rounded-2xl border border-border bg-white text-zinc-900 shadow-2xl p-6 sm:p-10 select-text overflow-x-auto">
+                    <div dangerouslySetInnerHTML={{ __html: compiledCaseDiaryCourtHtml }} />
+                  </div>
                 </div>
               )}
             </div>
