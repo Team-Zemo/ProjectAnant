@@ -58,6 +58,15 @@ export interface AccountStats {
   has_terminal_marker: boolean;
   has_script_device: boolean;
   is_victim?: boolean;
+  score_pt?: number;
+  score_terminal?: number;
+  score_topo?: number;
+  score_burst?: number;
+  score_device?: number;
+  score_velocity?: number;
+  score_fan_out?: number;
+  pt_ratio?: number;
+  terminal_ratio?: number;
   transactions?: Transaction[];
 }
 

@@ -17,8 +17,11 @@ import {
   Scale,
   FileText,
   ShieldAlert,
+  Calculator,
+  ChevronRight,
 } from "lucide-react";
 import type { AccountStats } from "../../types";
+import { ScoreExplainerModal } from "./ScoreExplainerModal";
 
 interface AccountInspectorProps {
   detail: AccountStats | null;
@@ -40,6 +43,7 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
   onOpenLegalNotice,
 }) => {
   const [copied, setCopied] = React.useState(false);
+  const [showScoreExplainer, setShowScoreExplainer] = React.useState(false);
 
   if (!detail) {
     return (
@@ -201,6 +205,20 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
               style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
             />
           </div>
+
+          {/* Explain Score Calculation Button */}
+          <button
+            type="button"
+            onClick={() => setShowScoreExplainer(true)}
+            className="mt-2.5 w-full py-2 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-mono font-semibold flex items-center justify-between transition-all cursor-pointer group shadow-sm"
+            title="Open comprehensive 7-signal mathematical explanation for this score"
+          >
+            <div className="flex items-center gap-1.5">
+              <Calculator className="w-3.5 h-3.5 text-primary group-hover:scale-110 transition-transform" />
+              <span>How was this score calculated?</span>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 opacity-60 group-hover:translate-x-0.5 group-hover:opacity-100 transition-all" />
+          </button>
         </div>
 
         {/* ── One-Click Subgraph Isolation & Syndicate Ring (Module C Requirement) ── */}
@@ -454,6 +472,13 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
           </div>
         )}
       </div>
+
+      {/* Score Explainer Modal */}
+      <ScoreExplainerModal
+        isOpen={showScoreExplainer}
+        onClose={() => setShowScoreExplainer(false)}
+        detail={detail}
+      />
     </div>
   );
 };
