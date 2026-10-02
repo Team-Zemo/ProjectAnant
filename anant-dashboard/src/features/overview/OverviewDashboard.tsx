@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   Activity,
@@ -19,7 +20,7 @@ interface OverviewDashboardProps {
   status: StatusResponse | null;
   topRisk: RiskAccount[];
   onTraceAccount: (accountId: string) => void;
-  onNavigateTab: (tab: NavTabId) => void;
+  onNavigateTab?: (tab: NavTabId) => void;
   onOpenIngest: () => void;
   isReady: boolean;
 }
@@ -33,6 +34,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   isReady,
 }) => {
   const [quickSearch, setQuickSearch] = useState("");
+  const navigate = useNavigate();
 
   const criticalCount = topRisk.filter((a) => (a.mule_score ?? 0) >= 70).length;
   const l1Count = topRisk.filter((a) => a.layer === 1).length;
@@ -41,9 +43,10 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
   const handleQuickTrace = (e: React.FormEvent) => {
     e.preventDefault();
-    if (quickSearch.trim()) {
-      onTraceAccount(quickSearch.trim());
-      onNavigateTab("investigation");
+    const acct = quickSearch.trim();
+    if (acct) {
+      onTraceAccount(acct);
+      navigate(`/investigation/${encodeURIComponent(acct)}`);
     }
   };
 
@@ -51,7 +54,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="flex flex-col gap-6 landing-reveal">
+    <div className="flex flex-col gap-6">
       {/* Top Banner / Hero */}
       <div className="p-6 rounded-2xl bg-card border border-border feature-card shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
@@ -74,7 +77,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         {/* Action Controls */}
         <div className="flex items-center gap-2.5">
           <button
-            onClick={() => onNavigateTab("investigation")}
+            onClick={() => navigate("/investigation")}
             className="btn btn-sm rounded-xl font-bold bg-primary text-primary-foreground hover:opacity-90 flex items-center gap-1.5 shadow-md shadow-primary/20 cursor-pointer"
           >
             <GitBranch className="w-3.5 h-3.5" />
@@ -152,7 +155,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </div>
 
             <button
-              onClick={() => onNavigateTab("mules")}
+              onClick={() => navigate("/mules")}
               className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
             >
               <span>View All Registry</span>
@@ -240,7 +243,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                         <button
                           onClick={() => {
                             onTraceAccount(a.account_id);
-                            onNavigateTab("investigation");
+                            navigate(`/investigation/${encodeURIComponent(a.account_id)}`);
                           }}
                           className="btn btn-xs rounded-lg font-bold bg-primary/10 hover:bg-primary hover:text-primary-foreground text-primary border border-primary/20 transition-all cursor-pointer inline-flex items-center gap-1"
                         >

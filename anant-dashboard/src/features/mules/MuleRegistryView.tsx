@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   Search,
@@ -17,7 +18,7 @@ import type { RiskAccount, LayerFilter, RiskSeverityFilter, NavTabId } from "../
 interface MuleRegistryViewProps {
   topRisk: RiskAccount[];
   onTraceAccount: (accountId: string) => void;
-  onNavigateTab: (tab: NavTabId) => void;
+  onNavigateTab?: (tab: NavTabId) => void;
   onRefreshTopRisk: () => void;
   isReady: boolean;
 }
@@ -29,6 +30,7 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
   onRefreshTopRisk,
   isReady,
 }) => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [layerFilter, setLayerFilter] = useState<LayerFilter>("all");
   const [severityFilter, setSeverityFilter] = useState<RiskSeverityFilter>("all");
@@ -89,7 +91,7 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="flex flex-col gap-6 landing-reveal">
+    <div className="flex flex-col gap-6">
       {/* Top Banner */}
       <div className="p-6 rounded-2xl bg-card border border-border feature-card shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -359,7 +361,7 @@ export const MuleRegistryView: React.FC<MuleRegistryViewProps> = ({
                       <button
                         onClick={() => {
                           onTraceAccount(a.account_id);
-                          onNavigateTab("investigation");
+                          navigate(`/investigation/${encodeURIComponent(a.account_id)}`);
                         }}
                         className="btn btn-xs rounded-lg font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm"
                       >

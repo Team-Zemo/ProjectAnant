@@ -51,7 +51,7 @@ export const PipelineView: React.FC<PipelineViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-6 landing-reveal">
+    <div className="flex flex-col gap-6">
       {/* Top Banner */}
       <div className="p-6 rounded-2xl bg-card border border-border feature-card shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

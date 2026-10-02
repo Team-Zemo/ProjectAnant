@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Search,
   Activity,
@@ -9,7 +10,6 @@ import {
   PanelRightOpen,
   Sparkles,
   Zap,
-  Loader2,
 } from "lucide-react";
 import TransactionGraph from "../../components/graph/TransactionGraph";
 import { AccountInspector } from "./AccountInspector";
@@ -58,20 +58,30 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
   onCloseDetail,
 }) => {
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  const { accountId } = useParams<{ accountId?: string }>();
+  const navigate = useNavigate();
 
-  // When mounting/entering Graph Studio, ensure default view returns to 4-hop trail
+  // URL deep-linking: If URL has accountId, automatically load that account on mount/change
   useEffect(() => {
-    if (traceMode !== "trail") {
+    if (accountId) {
+      const decoded = decodeURIComponent(accountId);
+      if (decoded !== selectedAccount) {
+        setTraceMode("trail");
+        onTrace(decoded);
+      }
+    } else if (traceMode !== "trail") {
       setTraceMode("trail");
       onTrace(selectedAccount || searchQuery);
     }
-  }, []);
+  }, [accountId]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
+    const acct = searchQuery.trim();
+    if (acct) {
       setTraceMode("trail");
-      onTrace(searchQuery.trim());
+      navigate(`/investigation/${encodeURIComponent(acct)}`);
+      onTrace(acct);
     }
   };
 
@@ -88,8 +98,13 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
     onSnapshotTrace();
   };
 
+  const handleNodeClickInternal = (nodeId: string) => {
+    navigate(`/investigation/${encodeURIComponent(nodeId)}`);
+    onNodeClick(nodeId);
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] gap-3 landing-reveal">
+    <div className="flex flex-col h-[calc(100vh-6rem)] gap-3">
       {/* Top Investigation Toolbar */}
       <div className="p-3.5 rounded-2xl bg-card border border-border feature-card shadow-sm flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
         {/* Search Bar & Trigger */}
@@ -121,6 +136,10 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
             <button
               onClick={() => {
                 setTraceMode("trail");
+                const target = selectedAccount || searchQuery;
+                if (target) {
+                  navigate(`/investigation/${encodeURIComponent(target)}`);
+                }
                 onTrace();
               }}
               disabled={!isReady || traceRunning}
@@ -208,7 +227,11 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
                 </p>
                 {isReady && topRisk.length > 0 && (
                   <button
-                    onClick={() => onTrace(topRisk[0].account_id)}
+                    onClick={() => {
+                      const topAcct = topRisk[0].account_id;
+                      navigate(`/investigation/${encodeURIComponent(topAcct)}`);
+                      onTrace(topAcct);
+                    }}
                     className="mt-2 btn btn-sm rounded-xl font-bold bg-primary text-primary-foreground hover:opacity-90 flex items-center gap-1.5 shadow-md shadow-primary/20 cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
@@ -223,7 +246,7 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
               <TransactionGraph
                 nodes={trailGraph.nodes}
                 edges={trailGraph.edges}
-                onNodeClick={onNodeClick}
+                onNodeClick={handleNodeClickInternal}
                 highlightedNodes={highlightedNodes}
                 sourceAccount={selectedAccount}
               />
@@ -254,6 +277,7 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
               }}
               onSelectAccount={(acct) => {
                 setSearchQuery(acct);
+                navigate(`/investigation/${encodeURIComponent(acct)}`);
                 onTrace(acct);
               }}
             />

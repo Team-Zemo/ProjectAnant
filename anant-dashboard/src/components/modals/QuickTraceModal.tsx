@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, X, GitBranch, ArrowRight } from "lucide-react";
 import type { RiskAccount } from "../../types";
 
@@ -16,6 +17,7 @@ export const QuickTraceModal: React.FC<QuickTraceModalProps> = ({
   topRiskAccounts,
 }) => {
   const [query, setQuery] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -38,6 +40,7 @@ export const QuickTraceModal: React.FC<QuickTraceModalProps> = ({
     e.preventDefault();
     const acct = query.trim();
     if (acct) {
+      navigate(`/investigation/${encodeURIComponent(acct)}`);
       onTrace(acct);
       onClose();
     }
@@ -88,6 +91,7 @@ export const QuickTraceModal: React.FC<QuickTraceModalProps> = ({
                 key={a.account_id}
                 type="button"
                 onClick={() => {
+                  navigate(`/investigation/${encodeURIComponent(a.account_id)}`);
                   onTrace(a.account_id);
                   onClose();
                 }}

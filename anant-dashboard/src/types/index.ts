@@ -13,6 +13,7 @@ export type NavTabId = "overview" | "investigation" | "mules" | "pipeline" | "sy
 
 export interface NavItem {
   id: NavTabId;
+  path: string;
   label: string;
   iconName: string;
   badge?: string | number | null;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import {
   api,
   type StatusResponse,
@@ -15,11 +16,12 @@ import { PipelineView } from "./features/pipeline/PipelineView";
 import { SystemHealthView } from "./features/system/SystemHealthView";
 import { QuickTraceModal } from "./components/modals/QuickTraceModal";
 import { IngestModal } from "./components/modals/IngestModal";
-import type { NavTabId, TraceMode } from "./types";
+import type { TraceMode } from "./types";
 
 export default function App() {
+  const location = useLocation();
+
   // Navigation & UI state
-  const [activeTab, setActiveTab] = useState<NavTabId>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [quickTraceOpen, setQuickTraceOpen] = useState(false);
   const [ingestModalOpen, setIngestModalOpen] = useState(false);
@@ -134,22 +136,6 @@ export default function App() {
     }
   }, []);
 
-  // ── Tab Switching Navigation Handler ───────────────────────────────────────
-  const handleNavigateTab = useCallback((tab: NavTabId) => {
-    if (tab === "investigation" && activeTab !== "investigation") {
-      // When navigating back into Graph Studio from another section,
-      // revert by default to 4-hop money trail and re-trace active account
-      if (traceMode !== "trail") {
-        setTraceMode("trail");
-        const target = selectedAccount || searchQuery || (topRisk.length > 0 ? topRisk[0].account_id : "");
-        if (target) {
-          handleTrace(target);
-        }
-      }
-    }
-    setActiveTab(tab);
-  }, [activeTab, traceMode, selectedAccount, searchQuery, topRisk, handleTrace]);
-
   // ── Node click → trace that account & update detail ─────────────────────────
   const handleNodeClick = (nodeId: string) => {
     setSelectedAccount(nodeId);
@@ -260,6 +246,7 @@ export default function App() {
   }, []);
 
   const isReady = status?.loaded ?? false;
+  const isInvestigationRoute = location.pathname.startsWith("/investigation");
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-soft-orange selection:text-foreground">
@@ -277,91 +264,120 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden">
         {/* Module Sidebar */}
         <Sidebar
-          activeTab={activeTab}
-          setActiveTab={handleNavigateTab}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           topRiskCount={topRisk.length}
           selectedAccount={selectedAccount}
           onTraceAccount={(acct) => {
-            handleNavigateTab("investigation");
             handleTrace(acct);
           }}
         />
 
         {/* Content View Outlet */}
         <main
-          className={`flex-1 lg:ml-64 p-4 lg:p-6 overflow-y-auto w-full transition-all ${
-            activeTab === "investigation" ? "max-w-none" : "max-w-7xl mx-auto"
+          className={`flex-1 lg:ml-64 p-4 lg:p-6 overflow-y-auto w-full ${
+            isInvestigationRoute ? "max-w-none" : "max-w-7xl mx-auto"
           }`}
         >
-          {/* Active Module Switcher */}
-          {activeTab === "overview" && (
-            <OverviewDashboard
-              status={status}
-              topRisk={topRisk}
-              onTraceAccount={(acct) => {
-                handleNavigateTab("investigation");
-                handleTrace(acct);
-              }}
-              onNavigateTab={handleNavigateTab}
-              onOpenIngest={() => setIngestModalOpen(true)}
-              isReady={isReady}
+          {/* React Router Routes */}
+          <Routes>
+            <Route path="/" element={<Navigate to="/overview" replace />} />
+            <Route
+              path="/overview"
+              element={
+                <OverviewDashboard
+                  status={status}
+                  topRisk={topRisk}
+                  onTraceAccount={handleTrace}
+                  onOpenIngest={() => setIngestModalOpen(true)}
+                  isReady={isReady}
+                />
+              }
             />
-          )}
-
-          {activeTab === "investigation" && (
-            <InvestigationView
-              trailGraph={trailGraph}
-              selectedAccount={selectedAccount}
-              accountDetail={accountDetail}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              traceRunning={traceRunning}
-              traceMode={traceMode}
-              setTraceMode={setTraceMode}
-              onTrace={handleTrace}
-              onRingTrace={handleRingTrace}
-              onSnapshotTrace={handleSnapshotTrace}
-              onNodeClick={handleNodeClick}
-              highlightedNodes={highlightedNodes}
-              topRisk={topRisk}
-              isReady={isReady}
-              onCloseDetail={() => {
-                setAccountDetail(null);
-                setSelectedAccount(null);
-                setHighlightedNodes(undefined);
-              }}
+            <Route
+              path="/investigation"
+              element={
+                <InvestigationView
+                  trailGraph={trailGraph}
+                  selectedAccount={selectedAccount}
+                  accountDetail={accountDetail}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  traceRunning={traceRunning}
+                  traceMode={traceMode}
+                  setTraceMode={setTraceMode}
+                  onTrace={handleTrace}
+                  onRingTrace={handleRingTrace}
+                  onSnapshotTrace={handleSnapshotTrace}
+                  onNodeClick={handleNodeClick}
+                  highlightedNodes={highlightedNodes}
+                  topRisk={topRisk}
+                  isReady={isReady}
+                  onCloseDetail={() => {
+                    setAccountDetail(null);
+                    setSelectedAccount(null);
+                    setHighlightedNodes(undefined);
+                  }}
+                />
+              }
             />
-          )}
-
-          {activeTab === "mules" && (
-            <MuleRegistryView
-              topRisk={topRisk}
-              onTraceAccount={(acct) => {
-                handleNavigateTab("investigation");
-                handleTrace(acct);
-              }}
-              onNavigateTab={handleNavigateTab}
-              onRefreshTopRisk={fetchTopRisk}
-              isReady={isReady}
+            <Route
+              path="/investigation/:accountId"
+              element={
+                <InvestigationView
+                  trailGraph={trailGraph}
+                  selectedAccount={selectedAccount}
+                  accountDetail={accountDetail}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  traceRunning={traceRunning}
+                  traceMode={traceMode}
+                  setTraceMode={setTraceMode}
+                  onTrace={handleTrace}
+                  onRingTrace={handleRingTrace}
+                  onSnapshotTrace={handleSnapshotTrace}
+                  onNodeClick={handleNodeClick}
+                  highlightedNodes={highlightedNodes}
+                  topRisk={topRisk}
+                  isReady={isReady}
+                  onCloseDetail={() => {
+                    setAccountDetail(null);
+                    setSelectedAccount(null);
+                    setHighlightedNodes(undefined);
+                  }}
+                />
+              }
             />
-          )}
-
-          {activeTab === "pipeline" && (
-            <PipelineView
-              status={status}
-              ingestRunning={ingestRunning}
-              ingestPct={ingestPct}
-              onStartIngest={handleStartIngest}
-              onTriggerRescore={handleTriggerRescore}
-              isReady={isReady}
+            <Route
+              path="/mules"
+              element={
+                <MuleRegistryView
+                  topRisk={topRisk}
+                  onTraceAccount={handleTrace}
+                  onRefreshTopRisk={fetchTopRisk}
+                  isReady={isReady}
+                />
+              }
             />
-          )}
-
-          {activeTab === "system" && (
-            <SystemHealthView status={status} isReady={isReady} />
-          )}
+            <Route
+              path="/pipeline"
+              element={
+                <PipelineView
+                  status={status}
+                  ingestRunning={ingestRunning}
+                  ingestPct={ingestPct}
+                  onStartIngest={handleStartIngest}
+                  onTriggerRescore={handleTriggerRescore}
+                  isReady={isReady}
+                />
+              }
+            />
+            <Route
+              path="/system"
+              element={<SystemHealthView status={status} isReady={isReady} />}
+            />
+            <Route path="*" element={<Navigate to="/overview" replace />} />
+          </Routes>
         </main>
       </div>
 
@@ -370,7 +386,6 @@ export default function App() {
         isOpen={quickTraceOpen}
         onClose={() => setQuickTraceOpen(false)}
         onTrace={(acct) => {
-          handleNavigateTab("investigation");
           handleTrace(acct);
         }}
         topRiskAccounts={topRisk}

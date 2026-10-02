@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   GitBranch,
@@ -12,8 +13,6 @@ import {
 import type { NavTabId } from "../../types";
 
 interface SidebarProps {
-  activeTab: NavTabId;
-  setActiveTab: (tab: NavTabId) => void;
   isOpen: boolean;
   onClose: () => void;
   topRiskCount?: number;
@@ -22,17 +21,19 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  activeTab,
-  setActiveTab,
   isOpen,
   onClose,
   topRiskCount,
   selectedAccount,
   onTraceAccount,
 }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const navItems = [
     {
       id: "overview" as NavTabId,
+      path: "/overview",
       label: "Overview",
       icon: LayoutDashboard,
       badge: null,
@@ -40,6 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: "investigation" as NavTabId,
+      path: "/investigation",
       label: "Graph Studio",
       icon: GitBranch,
       badge: "4-Hop",
@@ -47,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: "mules" as NavTabId,
+      path: "/mules",
       label: "Mule Registry",
       icon: AlertTriangle,
       badge: typeof topRiskCount === "number" && topRiskCount > 0 ? `${topRiskCount}` : "Active",
@@ -54,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: "pipeline" as NavTabId,
+      path: "/pipeline",
       label: "Engine Pipeline",
       icon: Zap,
       badge: "SIMD",
@@ -61,12 +65,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: "system" as NavTabId,
+      path: "/system",
       label: "System Diagnostics",
       icon: Server,
       badge: null,
       badgeClass: "",
     },
   ];
+
+  const isItemActive = (path: string) => {
+    if (path === "/overview") {
+      return location.pathname === "/overview" || location.pathname === "/";
+    }
+    return location.pathname.startsWith(path);
+  };
 
   return (
     <>
@@ -94,12 +106,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <ul className="flex flex-col gap-1 w-full">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = activeTab === item.id;
+                const isActive = isItemActive(item.path);
                 return (
                   <li key={item.id}>
                     <button
                       onClick={() => {
-                        setActiveTab(item.id);
+                        navigate(item.path);
                         onClose();
                       }}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-200 cursor-pointer ${
@@ -143,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {selectedAccount && (
           <div
             onClick={() => {
-              setActiveTab("investigation");
+              navigate(`/investigation/${encodeURIComponent(selectedAccount)}`);
               onTraceAccount?.(selectedAccount);
               onClose();
             }}
