@@ -116,6 +116,30 @@ export default function App() {
     }
   }, []);
 
+  // ── Syndicate Ring Isolation ────────────────────────────────────────────────
+  const handleSyndicateTrace = useCallback(async (syndicateId: string) => {
+    if (!syndicateId) return;
+    setTraceMode("syndicate");
+    setTraceRunning(true);
+    const startTime = Date.now();
+    try {
+      const detail = await api.syndicate(syndicateId);
+      if (detail && detail.members) {
+        setTrailGraph({ nodes: detail.members, edges: detail.edges || [] });
+        const ids = new Set<string>(detail.members.map((m: any) => m.account_id || m.id || ""));
+        setHighlightedNodes(ids);
+      }
+    } catch (e) {
+      console.error("Syndicate isolation failed:", e);
+    } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 280) {
+        await new Promise((r) => setTimeout(r, 280 - elapsed));
+      }
+      setTraceRunning(false);
+    }
+  }, []);
+
   // ── Node click → trace that account & update detail ─────────────────────────
   const handleNodeClick = (nodeId: string) => {
     setSelectedAccount(nodeId);
@@ -291,6 +315,7 @@ export default function App() {
                   setTraceMode={setTraceMode}
                   onTrace={handleTrace}
                   onRingTrace={handleRingTrace}
+                  onSyndicateTrace={handleSyndicateTrace}
                   onNodeClick={handleNodeClick}
                   highlightedNodes={highlightedNodes}
                   topRisk={topRisk}
@@ -317,6 +342,7 @@ export default function App() {
                   setTraceMode={setTraceMode}
                   onTrace={handleTrace}
                   onRingTrace={handleRingTrace}
+                  onSyndicateTrace={handleSyndicateTrace}
                   onNodeClick={handleNodeClick}
                   highlightedNodes={highlightedNodes}
                   topRisk={topRisk}

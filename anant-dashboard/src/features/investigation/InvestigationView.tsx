@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Search,
@@ -10,9 +10,18 @@ import {
   PanelRightOpen,
   Sparkles,
   Zap,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  FileJson,
+  ShieldCheck,
+  ChevronDown,
+  Network,
+  Share2,
 } from "lucide-react";
 import TransactionGraph from "../../components/graph/TransactionGraph";
 import { AccountInspector } from "./AccountInspector";
+import { TemporalPlaybackSlider } from "./TemporalPlaybackSlider";
 import type {
   GraphSnapshot,
   AccountStats,
@@ -31,6 +40,7 @@ interface InvestigationViewProps {
   setTraceMode: (mode: TraceMode) => void;
   onTrace: (targetAccount?: string) => void;
   onRingTrace: (targetAccount: string) => void;
+  onSyndicateTrace?: (syndicateId: string) => void;
   onNodeClick: (nodeId: string) => void;
   highlightedNodes?: Set<string>;
   topRisk: RiskAccount[];
@@ -49,6 +59,7 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
   setTraceMode,
   onTrace,
   onRingTrace,
+  onSyndicateTrace,
   onNodeClick,
   highlightedNodes,
   topRisk,
@@ -56,11 +67,27 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
   onCloseDetail,
 }) => {
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [filterTimestamp, setFilterTimestamp] = useState<number | null>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
   const { accountId } = useParams<{ accountId?: string }>();
   const navigate = useNavigate();
 
+  // Close export dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // URL deep-linking: If URL has accountId, automatically load that account on mount/change
   useEffect(() => {
+    setFilterTimestamp(null);
     if (accountId) {
       const decoded = decodeURIComponent(accountId);
       if (decoded !== selectedAccount) {
@@ -77,6 +104,7 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
     e.preventDefault();
     const acct = searchQuery.trim();
     if (acct) {
+      setFilterTimestamp(null);
       setTraceMode("trail");
       navigate(`/investigation/${encodeURIComponent(acct)}`);
       onTrace(acct);
@@ -86,14 +114,104 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
   const handleRingClick = () => {
     const acct = (selectedAccount || searchQuery).trim();
     if (acct) {
+      setFilterTimestamp(null);
       setTraceMode("ring");
       onRingTrace(acct);
+    }
+  };
+
+  const handleSyndicateClick = () => {
+    if (accountDetail?.syndicate_id && onSyndicateTrace) {
+      setFilterTimestamp(null);
+      setTraceMode("syndicate");
+      onSyndicateTrace(accountDetail.syndicate_id);
     }
   };
 
   const handleNodeClickInternal = (nodeId: string) => {
     navigate(`/investigation/${encodeURIComponent(nodeId)}`);
     onNodeClick(nodeId);
+  };
+
+  // ── One-Click Sub-Dataset Export Handlers (Module C Requirement) ───────────
+  const exportTransactionsCsv = () => {
+    if (!trailGraph.edges.length) return;
+    const headers = ["Transaction_ID", "Sender_Account", "Receiver_Account", "Amount_INR", "Timestamp_Unix", "Timestamp_ISO", "Payment_Mode"];
+    const rows = trailGraph.edges.map((e) => [
+      e.txn_id ?? e["t.txn_id"] ?? "TXN_UNKNOWN",
+      e.from ?? e["a.id"] ?? e.sender_account ?? "",
+      e.to ?? e["b.id"] ?? e.receiver_account ?? "",
+      e.amount ?? 0,
+      e.ts ?? "",
+      e.ts ? new Date(e.ts * 1000).toISOString() : "",
+      e.mode ?? "IMPS",
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `subdataset_transactions_${selectedAccount || "trail"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setExportMenuOpen(false);
+  };
+
+  const exportAccountsCsv = () => {
+    if (!trailGraph.nodes.length) return;
+    const headers = ["Account_ID", "Bank", "Layer", "Mule_Score", "In_Degree", "Out_Degree", "Syndicate_ID", "Syndicate_Role"];
+    const rows = trailGraph.nodes.map((n) => [
+      n.id ?? n["a.id"] ?? n.account_id ?? "",
+      n.bank ?? "",
+      n.layer ?? 0,
+      n.mule_score ?? 0,
+      n.in_degree ?? 0,
+      n.out_degree ?? 0,
+      n.syndicate_id ?? "",
+      n.syndicate_role ?? "",
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `subdataset_accounts_${selectedAccount || "trail"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setExportMenuOpen(false);
+  };
+
+  const exportEvidenceBundleJson = () => {
+    const data = {
+      investigation_case: "Operation Abhedya-Chakra",
+      theme: "Cyber Security & Digital Forensics · Indore Police",
+      target_account: selectedAccount,
+      mode: traceMode,
+      exported_at: new Date().toISOString(),
+      nodes_count: trailGraph.nodes.length,
+      edges_count: trailGraph.edges.length,
+      nodes: trailGraph.nodes,
+      edges: trailGraph.edges,
+      officer_notes: "Court-ready sub-dataset generated under Section 91 CrPC / BNSS guidelines.",
+    };
+
+    const jsonStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+    const link = document.createElement("a");
+    link.setAttribute("href", jsonStr);
+    link.setAttribute("download", `forensics_subdataset_${selectedAccount || "trail"}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setExportMenuOpen(false);
+  };
+
+  const exportAllEvidencePackage = () => {
+    exportTransactionsCsv();
+    setTimeout(() => exportAccountsCsv(), 180);
+    setTimeout(() => exportEvidenceBundleJson(), 360);
+    setExportMenuOpen(false);
   };
 
   return (
@@ -128,6 +246,7 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
           <div className="p-1 rounded-xl bg-background border border-border flex items-center gap-1">
             <button
               onClick={() => {
+                setFilterTimestamp(null);
                 setTraceMode("trail");
                 const target = selectedAccount || searchQuery;
                 if (target) {
@@ -144,6 +263,7 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
             >
               4-Hop Trail
             </button>
+
             <button
               onClick={handleRingClick}
               disabled={!isReady || traceRunning || (!selectedAccount && !searchQuery)}
@@ -156,6 +276,39 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
             >
               2-Hop Ring
             </button>
+
+            {accountDetail?.syndicate_id && (
+              <>
+                <button
+                  onClick={handleSyndicateClick}
+                  disabled={!isReady || traceRunning}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer flex items-center gap-1 ${
+                    traceMode === "syndicate"
+                      ? "bg-amber-500 text-black shadow-sm font-bold"
+                      : "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                  }`}
+                  title={`Isolate full ${accountDetail.syndicate_id} syndicate network`}
+                >
+                  <Network className="w-3 h-3" />
+                  <span>Isolate {accountDetail.syndicate_id}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    handleSyndicateClick();
+                    setTimeout(() => {
+                      exportEvidenceBundleJson();
+                    }, 300);
+                  }}
+                  disabled={!isReady || traceRunning}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold font-sans bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                  title="Isolate syndicate ring and immediately export court-ready evidence bundle in 1 click"
+                >
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  <span>Isolate & Export</span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Node / Edge Telemetry Badge */}
@@ -166,6 +319,81 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
               <span className="text-border">|</span>
               <span className="text-muted-foreground">Edges:</span>
               <span className="font-bold text-success">{trailGraph.edges.length}</span>
+            </div>
+          )}
+
+          {/* Sub-Dataset Export Dropdown (Module C Requirement) */}
+          {trailGraph.nodes.length > 0 && (
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setExportMenuOpen((prev) => !prev)}
+                className="px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted border border-border/80 text-foreground text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+                title="Export Associated Sub-Dataset"
+              >
+                <Download className="w-3.5 h-3.5 text-primary" />
+                <span className="hidden md:inline">Export Sub-Dataset</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${exportMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {exportMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-card/95 backdrop-blur-xl border border-border shadow-2xl z-50 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-1.5 text-[10px] font-mono text-muted-foreground uppercase border-b border-border/40">
+                    Court-Ready Sub-Dataset
+                  </div>
+
+                  <button
+                    onClick={exportTransactionsCsv}
+                    className="w-full px-3 py-2 rounded-xl text-left text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary flex items-center gap-2.5 transition-colors"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                    <div>
+                      <div className="font-bold">Transactions CSV</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        {trailGraph.edges.length} transfers with amounts & timestamps
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={exportAccountsCsv}
+                    className="w-full px-3 py-2 rounded-xl text-left text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary flex items-center gap-2.5 transition-colors"
+                  >
+                    <FileText className="w-4 h-4 text-primary" />
+                    <div>
+                      <div className="font-bold">Accounts & Mules CSV</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        {trailGraph.nodes.length} accounts with risk scores & layers
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={exportEvidenceBundleJson}
+                    className="w-full px-3 py-2 rounded-xl text-left text-xs font-medium text-foreground hover:bg-primary/10 hover:text-primary flex items-center gap-2.5 transition-colors border-t border-border/40 pt-2"
+                  >
+                    <FileJson className="w-4 h-4 text-amber-400" />
+                    <div>
+                      <div className="font-bold">Evidence Bundle JSON</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        Full digital forensics payload for Section 91
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={exportAllEvidencePackage}
+                    className="w-full px-3 py-2 rounded-xl text-left text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-2.5 transition-colors border-t border-border/40 pt-2"
+                  >
+                    <Zap className="w-4 h-4 text-primary" />
+                    <div>
+                      <div className="font-bold text-primary">Download All Forensics (CSV + JSON)</div>
+                      <div className="text-[10px] text-primary/80 font-mono">
+                        One-click export of complete court evidence package
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -230,6 +458,18 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
                 onNodeClick={handleNodeClickInternal}
                 highlightedNodes={highlightedNodes}
                 sourceAccount={selectedAccount}
+                filterTimestamp={filterTimestamp}
+              />
+            )}
+
+            {/* Temporal Playback Slider (Module C Requirement) */}
+            {trailGraph.edges.length > 0 && (
+              <TemporalPlaybackSlider
+                edges={trailGraph.edges}
+                nodes={trailGraph.nodes}
+                currentTimestamp={filterTimestamp}
+                onTimestampChange={setFilterTimestamp}
+                sourceAccount={selectedAccount}
               />
             )}
           </div>
@@ -261,6 +501,19 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
                 navigate(`/investigation/${encodeURIComponent(acct)}`);
                 onTrace(acct);
               }}
+              onIsolateSyndicate={(synId) => {
+                if (onSyndicateTrace) {
+                  setFilterTimestamp(null);
+                  setTraceMode("syndicate");
+                  onSyndicateTrace(synId);
+                }
+              }}
+              onIsolateRing={(acct) => {
+                setFilterTimestamp(null);
+                setTraceMode("ring");
+                onRingTrace(acct);
+              }}
+              onExportSubdataset={exportEvidenceBundleJson}
             />
           </div>
         )}

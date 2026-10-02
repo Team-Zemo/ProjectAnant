@@ -11,6 +11,7 @@ interface Props {
   onNodeClick?: (nodeId: string) => void;
   highlightedNodes?: Set<string>;
   sourceAccount?: string | null;
+  filterTimestamp?: number | null;
 }
 
 // Layer → color mapping aligned with OKLCH AML tokens
@@ -34,6 +35,7 @@ export default function TransactionGraph({
   onNodeClick,
   highlightedNodes,
   sourceAccount,
+  filterTimestamp,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sigmaRef     = useRef<Sigma | null>(null);
@@ -414,37 +416,94 @@ export default function TransactionGraph({
     } catch {}
   };
 
-  // Hover highlighting: dim non-neighbors
+  // Hover and temporal filtering reducers
   useEffect(() => {
     if (!sigmaRef.current || !graphRef.current) return;
     const g = graphRef.current;
 
-    if (hoveredNode && g.hasNode(hoveredNode)) {
-      const neighbors = new Set(g.neighbors(hoveredNode));
-      neighbors.add(hoveredNode);
-      sigmaRef.current.setSetting("nodeReducer", (node, data) => ({
-        ...data,
-        color: neighbors.has(node) ? data.color : "#0f172a",
-        size:  neighbors.has(node) ? data.size * 1.25 : data.size * 0.45,
-        label: neighbors.has(node) ? data.label : "",
-      }));
-      sigmaRef.current.setSetting("edgeReducer", (edge, data) => {
+    const targetId = sourceAccount || (nodes[0]?.id ?? nodes[0]?.["a.id"] ?? nodes[0]?.account_id ?? "");
+
+    // Set of nodes that have at least one visible transaction up to filterTimestamp
+    const activeNodesAtTime = new Set<string>();
+    if (targetId) activeNodesAtTime.add(targetId);
+
+    if (filterTimestamp) {
+      g.forEachEdge((edge, attr) => {
+        const ts = Number(attr.ts ?? 0);
+        if (ts <= filterTimestamp) {
+          activeNodesAtTime.add(g.source(edge));
+          activeNodesAtTime.add(g.target(edge));
+        }
+      });
+    }
+
+    const hasHover = Boolean(hoveredNode && g.hasNode(hoveredNode));
+    const neighbors = hasHover ? new Set(g.neighbors(hoveredNode!)) : new Set<string>();
+    if (hasHover) neighbors.add(hoveredNode!);
+
+    sigmaRef.current.setSetting("nodeReducer", (node, data) => {
+      // Temporal visibility: hide nodes that have not yet engaged in funds flow
+      if (filterTimestamp && !activeNodesAtTime.has(node)) {
+        return {
+          ...data,
+          hidden: true,
+          label: "",
+        };
+      }
+
+      // Hover dimming
+      if (hasHover) {
+        const isNeighbor = neighbors.has(node);
+        return {
+          ...data,
+          color: isNeighbor ? data.color : "#0f172a",
+          size:  isNeighbor ? data.size * 1.25 : data.size * 0.45,
+          label: isNeighbor ? data.label : "",
+        };
+      }
+
+      return data;
+    });
+
+    sigmaRef.current.setSetting("edgeReducer", (edge, data) => {
+      const edgeTs = Number(data.ts ?? 0);
+
+      // Temporal visibility: hide edges occurring after current scrubbed timestamp
+      if (filterTimestamp && edgeTs > filterTimestamp) {
+        return {
+          ...data,
+          hidden: true,
+        };
+      }
+
+      // Highlight most recent transfers within the current 30-minute window
+      const isRecent = Boolean(filterTimestamp && (filterTimestamp - edgeTs <= 1800));
+
+      // Hover dimming
+      if (hasHover) {
         const src = g.source(edge), tgt = g.target(edge);
         const active = neighbors.has(src) && neighbors.has(tgt);
         return {
           ...data,
-          color: active ? "rgba(16, 185, 129, 0.95)" : "rgba(148, 163, 184, 0.05)",
-          size: active ? 3.0 : 0.5,
+          color: active ? (isRecent ? "#38bdf8" : "rgba(16, 185, 129, 0.95)") : "rgba(148, 163, 184, 0.05)",
+          size: active ? (isRecent ? 3.5 : 3.0) : 0.5,
           hidden: !active,
         };
-      });
-    } else {
-      sigmaRef.current.setSetting("nodeReducer", null);
-      sigmaRef.current.setSetting("edgeReducer", null);
-    }
+      }
+
+      if (isRecent) {
+        return {
+          ...data,
+          color: "#38bdf8", // bright cyan glow for newly arrived funds
+          size: 3.5,
+        };
+      }
+
+      return data;
+    });
 
     sigmaRef.current.refresh();
-  }, [hoveredNode]);
+  }, [hoveredNode, filterTimestamp, sourceAccount, nodes]);
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-transparent">

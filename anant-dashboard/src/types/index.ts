@@ -40,7 +40,7 @@ export interface MuleRegistryFilters {
   hasScriptDevice?: boolean;
 }
 
-export type TraceMode = "trail" | "ring";
+export type TraceMode = "trail" | "ring" | "syndicate";
 
 export type {
   StatusResponse,

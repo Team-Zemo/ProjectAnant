@@ -10,6 +10,10 @@ import {
   Cpu,
   Copy,
   Check,
+  Network,
+  Download,
+  GitBranch,
+  Zap,
 } from "lucide-react";
 import type { AccountStats } from "../../types";
 
@@ -17,12 +21,18 @@ interface AccountInspectorProps {
   detail: AccountStats | null;
   onClose: () => void;
   onSelectAccount?: (accountId: string) => void;
+  onIsolateSyndicate?: (syndicateId: string) => void;
+  onIsolateRing?: (accountId: string) => void;
+  onExportSubdataset?: () => void;
 }
 
 export const AccountInspector: React.FC<AccountInspectorProps> = ({
   detail,
   onClose,
   onSelectAccount,
+  onIsolateSyndicate,
+  onIsolateRing,
+  onExportSubdataset,
 }) => {
   const [copied, setCopied] = React.useState(false);
 
@@ -158,6 +168,94 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
             />
           </div>
         </div>
+
+        {/* ── One-Click Subgraph Isolation & Syndicate Ring (Module C Requirement) ── */}
+        {detail.syndicate_id ? (
+          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-amber-400 font-mono text-xs font-bold">
+                <Network className="w-3.5 h-3.5 text-amber-400" />
+                <span>Syndicate: {detail.syndicate_id}</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold uppercase">
+                {detail.syndicate_role || "Mule"}
+              </span>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Account is mapped to organized fraud syndicate <span className="text-amber-400 font-mono font-bold">{detail.syndicate_id}</span>. One click isolates all clustered syndicate members and exports court-ready evidence.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 mt-0.5">
+              <button
+                type="button"
+                onClick={() => onIsolateSyndicate?.(detail.syndicate_id!)}
+                className="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                title={`Isolate full ${detail.syndicate_id} network in graph`}
+              >
+                <Network className="w-3.5 h-3.5" />
+                <span>Isolate Ring</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onIsolateSyndicate?.(detail.syndicate_id!);
+                  setTimeout(() => {
+                    onExportSubdataset?.();
+                  }, 250);
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-primary hover:opacity-90 text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-primary/20 transition-all cursor-pointer"
+                title="Isolate syndicate ring and immediately download court-ready sub-dataset"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Isolate & Export</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3.5 rounded-xl bg-card border border-border flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-primary font-mono text-xs font-bold">
+                <GitBranch className="w-3.5 h-3.5 text-primary" />
+                <span>Direct Neighborhood Ring</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground font-mono font-bold">
+                2-HOP
+              </span>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Isolate the immediate 2-hop transaction neighborhood around this account and export the associated sub-dataset.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 mt-0.5">
+              <button
+                type="button"
+                onClick={() => onIsolateRing?.(detail.account_id)}
+                className="px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground border border-border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <GitBranch className="w-3.5 h-3.5" />
+                <span>Isolate Ring</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onIsolateRing?.(detail.account_id);
+                  setTimeout(() => {
+                    onExportSubdataset?.();
+                  }, 250);
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-primary hover:opacity-90 text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-primary/20 transition-all cursor-pointer"
+                title="Isolate 2-hop ring and immediately download court-ready sub-dataset"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Isolate & Export</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Scoring Breakdown Factors */}
         <div className="p-3.5 rounded-xl bg-background border border-border flex flex-col gap-2.5 text-xs">
