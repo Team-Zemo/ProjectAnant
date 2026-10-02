@@ -84,10 +84,15 @@ public:
     DuckLoader(const DuckLoader&)            = delete;
     DuckLoader& operator=(const DuckLoader&) = delete;
 
-    /// Load CSV file into DuckDB.
+    /// Load one or more CSV files into DuckDB.
     /// Returns elapsed milliseconds.
-    uint64_t load(const std::string& csv_path,
+    uint64_t load(const std::vector<std::string>& csv_paths,
                   std::function<void(int pct, uint64_t rows)> progress_cb = {});
+
+    uint64_t load(const std::string& csv_path,
+                  std::function<void(int pct, uint64_t rows)> progress_cb = {}) {
+        return load(std::vector<std::string>{csv_path}, std::move(progress_cb));
+    }
 
     /// Run SQL and return JSON string array
     std::string query_json(const std::string& sql);

@@ -265,3 +265,278 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Legal HTML Document Content Styling (Screen & Print) ── */
+.legal-html-content {
+  color: inherit;
+  line-height: 1.6;
+}
+
+.legal-html-content h1 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  text-align: center;
+  margin: 1.25rem 0 0.5rem 0;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.legal-html-content h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0.5rem 0;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.legal-html-content h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 1rem 0 0.4rem 0;
+}
+
+.legal-html-content h4 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.25rem 0;
+}
+
+.legal-html-content p {
+  margin: 0.6rem 0;
+  font-size: 0.825rem;
+  line-height: 1.6;
+}
+
+.legal-html-content hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.25rem 0;
+}
+
+.legal-html-content ul, .legal-html-content ol {
+  margin: 0.5rem 0 0.75rem 1.25rem;
+  font-size: 0.825rem;
+  line-height: 1.6;
+}
+
+.legal-html-content ul {
+  list-style-type: disc;
+}
+
+.legal-html-content ol {
+  list-style-type: decimal;
+}
+
+.legal-html-content li {
+  margin: 0.25rem 0;
+}
+
+.legal-html-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+}
+
+.legal-html-content th {
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+  font-weight: 700;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+}
+
+.legal-html-content td {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+}
+
+.legal-html-content tr:nth-child(even) td {
+  background: color-mix(in oklab, var(--muted) 25%, transparent);
+}
+
+.legal-html-content code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+.legal-html-content pre {
+  background: color-mix(in oklab, var(--muted) 40%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 1rem 0;
+  overflow-x: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+}
+
+.legal-html-content strong {
+  font-weight: 700;
+}
+
+/* ── Court-Ready Print Stylesheet (Module D Requirement) ── */
+@media print {
+  /* Hide all dashboard chrome, navigation, buttons, toolbars */
+  nav, aside, header, button, input, .print\:hidden,
+  .navbar, .sidebar, .feature-card,
+  #root > div > div > header,
+  .graph-studio-canvas {
+    display: none !important;
+  }
+
+  html, body, #root, #root > div, main {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: "Times New Roman", Times, Georgia, serif !important;
+    font-size: 10.5pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+
+  /* Reset fixed modal overlay into pure document flow */
+  .legal-modal-backdrop {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    overflow: visible !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .legal-modal-container {
+    position: static !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .legal-paper-document {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    width: 100% !important;
+  }
+
+  .legal-html-content {
+    color: #000000 !important;
+    font-family: "Times New Roman", Times, Georgia, serif !important;
+    font-size: 10pt !important;
+    line-height: 1.4 !important;
+  }
+
+  .legal-html-content h1 {
+    color: #000000 !important;
+    font-size: 13.5pt !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    margin: 10pt 0 4pt 0 !important;
+    text-transform: uppercase !important;
+  }
+
+  .legal-html-content h2 {
+    color: #000000 !important;
+    font-size: 11.5pt !important;
+    font-weight: bold !important;
+    margin-top: 12pt !important;
+    margin-bottom: 4pt !important;
+    border-bottom: 1px solid #000000 !important;
+  }
+
+  .legal-html-content h3 {
+    color: #000000 !important;
+    font-size: 10.5pt !important;
+    font-weight: bold !important;
+    margin-top: 10pt !important;
+    margin-bottom: 3pt !important;
+  }
+
+  .legal-html-content p {
+    color: #000000 !important;
+    font-size: 10pt !important;
+    margin: 5pt 0 !important;
+    text-align: justify !important;
+  }
+
+  .legal-html-content ul, .legal-html-content ol {
+    margin: 4pt 0 6pt 16pt !important;
+    font-size: 9.5pt !important;
+  }
+
+  .legal-html-content table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 8pt 0 !important;
+    font-size: 8.5pt !important;
+    font-family: "Arial", sans-serif !important;
+    page-break-inside: avoid !important;
+  }
+
+  .legal-html-content th,
+  .legal-html-content td {
+    border: 1px solid #000000 !important;
+    color: #000000 !important;
+    padding: 3.5pt 5pt !important;
+  }
+
+  .legal-html-content th {
+    background-color: #f2f2f2 !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .legal-html-content tr:nth-child(even) td {
+    background: transparent !important;
+  }
+
+  .legal-html-content hr {
+    border-top: 1px solid #000000 !important;
+    margin: 8pt 0 !important;
+  }
+
+  .legal-html-content pre,
+  .legal-html-content code {
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 9pt !important;
+    background: transparent !important;
+    color: #000000 !important;
+    border: 1px dashed #444444 !important;
+    padding: 6pt !important;
+    white-space: pre-wrap !important;
+    page-break-inside: avoid !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm 1.5cm 1.5cm 1.5cm;
+  }
+}
+
+

@@ -18,10 +18,12 @@ import {
   ChevronDown,
   Network,
   Share2,
+  Scale,
 } from "lucide-react";
 import TransactionGraph from "../../components/graph/TransactionGraph";
 import { AccountInspector } from "./AccountInspector";
 import { TemporalPlaybackSlider } from "./TemporalPlaybackSlider";
+import { LegalNoticeModal } from "./LegalNoticeModal";
 import type {
   GraphSnapshot,
   AccountStats,
@@ -69,6 +71,8 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [filterTimestamp, setFilterTimestamp] = useState<number | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+  const [legalTargetAccount, setLegalTargetAccount] = useState<string>("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const { accountId } = useParams<{ accountId?: string }>();
@@ -215,9 +219,9 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] gap-3">
+    <div className={`flex flex-col h-[calc(100vh-6rem)] gap-3 ${legalModalOpen ? "print:hidden" : ""}`}>
       {/* Top Investigation Toolbar */}
-      <div className="p-3.5 rounded-2xl bg-card border border-border feature-card shadow-sm flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+      <div className="p-3.5 rounded-2xl bg-card border border-border feature-card shadow-sm flex flex-wrap items-center justify-between gap-3 flex-shrink-0 print:hidden">
         {/* Search Bar & Trigger */}
         <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 flex-1 min-w-[280px] max-w-md">
           <div className="relative flex-1">
@@ -397,6 +401,21 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
             </div>
           )}
 
+          {/* Legal AI Officer Button (Module D Requirement) */}
+          {(selectedAccount || searchQuery) && (
+            <button
+              onClick={() => {
+                setLegalTargetAccount(selectedAccount || searchQuery);
+                setLegalModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-primary/20 cursor-pointer"
+              title="Generate Court-Ready Section 91 Notice & Police Case Diary"
+            >
+              <Scale className="w-3.5 h-3.5" />
+              <span>Legal AI Officer</span>
+            </button>
+          )}
+
           {/* Inspector Panel Toggle Button */}
           <button
             onClick={() => setInspectorOpen((prev) => !prev)}
@@ -514,10 +533,23 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
                 onRingTrace(acct);
               }}
               onExportSubdataset={exportEvidenceBundleJson}
+              onOpenLegalNotice={(acct) => {
+                setLegalTargetAccount(acct);
+                setLegalModalOpen(true);
+              }}
             />
           </div>
         )}
       </div>
+
+      {/* Module D: Local Legal AI Notice & Police Case Diary Modal */}
+      {legalModalOpen && (
+        <LegalNoticeModal
+          isOpen={legalModalOpen}
+          onClose={() => setLegalModalOpen(false)}
+          accountId={legalTargetAccount || selectedAccount || searchQuery}
+        />
+      )}
     </div>
   );
 };

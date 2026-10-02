@@ -14,6 +14,8 @@ import {
   Download,
   GitBranch,
   Zap,
+  Scale,
+  FileText,
 } from "lucide-react";
 import type { AccountStats } from "../../types";
 
@@ -24,6 +26,7 @@ interface AccountInspectorProps {
   onIsolateSyndicate?: (syndicateId: string) => void;
   onIsolateRing?: (accountId: string) => void;
   onExportSubdataset?: () => void;
+  onOpenLegalNotice?: (accountId: string) => void;
 }
 
 export const AccountInspector: React.FC<AccountInspectorProps> = ({
@@ -33,6 +36,7 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
   onIsolateSyndicate,
   onIsolateRing,
   onExportSubdataset,
+  onOpenLegalNotice,
 }) => {
   const [copied, setCopied] = React.useState(false);
 
@@ -256,6 +260,32 @@ export const AccountInspector: React.FC<AccountInspectorProps> = ({
             </div>
           </div>
         )}
+
+        {/* ── Section 91 & Police Case Diary Generator (Module D Requirement) ── */}
+        <div className="p-3.5 rounded-xl bg-card border border-border flex flex-col gap-2 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-foreground font-mono text-xs font-bold">
+              <Scale className="w-3.5 h-3.5 text-primary" />
+              <span>Legal Case Officer</span>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-primary/15 text-primary font-mono font-bold">
+              SEC 91 / BNSS
+            </span>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Auto-generate court-ready Section 91 CrPC Bank Freeze Requisitions and chronological Police Case Diary with local Gemma 3 AI.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => onOpenLegalNotice?.(detail.account_id)}
+            className="w-full mt-1 px-3 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:border-primary/60"
+          >
+            <FileText className="w-4 h-4 text-primary" />
+            <span>Generate Sec 91 Notice / Case Diary</span>
+          </button>
+        </div>
 
         {/* Scoring Breakdown Factors */}
         <div className="p-3.5 rounded-xl bg-background border border-border flex flex-col gap-2.5 text-xs">

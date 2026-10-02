@@ -67,14 +67,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badgeClass: "bg-destructive/20 text-destructive border border-destructive/30 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold",
     },
     {
-      id: "pipeline" as NavTabId,
-      path: "/pipeline",
-      label: "Engine Pipeline",
-      icon: Zap,
-      badge: "SIMD",
-      badgeClass: "bg-muted text-foreground text-[10px] px-2 py-0.5 rounded-full font-mono",
-    },
-    {
       id: "system" as NavTabId,
       path: "/system",
       label: "System Diagnostics",

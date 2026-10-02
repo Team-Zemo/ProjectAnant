@@ -57,8 +57,9 @@ int main(int argc, char* argv[]) {
         std::cout << "[OK] Connected to Memgraph\n";
     }
 
-    // Build Aegon server
+    // Build Aegon server with 1 GB body size limit for large CSV datasets
     aegon::http::Server server;
+    server.max_body_size(1024ULL * 1024 * 1024);
 
     // CORS & Security Headers — using Aegon's native zero-copy middleware
     server.router().use(aegon::http::middleware::cors());
@@ -91,7 +92,6 @@ int main(int argc, char* argv[]) {
             server.router().get("/investigation", spa_handler);
             server.router().get("/investigation/:accountId", spa_handler);
             server.router().get("/mules", spa_handler);
-            server.router().get("/pipeline", spa_handler);
             server.router().get("/system", spa_handler);
         }
     }

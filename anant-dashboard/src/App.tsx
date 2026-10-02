@@ -13,7 +13,6 @@ import { OverviewDashboard } from "./features/overview/OverviewDashboard";
 import { InvestigationView } from "./features/investigation/InvestigationView";
 import { MuleRegistryView } from "./features/mules/MuleRegistryView";
 import { SyndicatesView } from "./features/syndicates/SyndicatesView";
-import { PipelineView } from "./features/pipeline/PipelineView";
 import { SystemHealthView } from "./features/system/SystemHealthView";
 import { QuickTraceModal } from "./components/modals/QuickTraceModal";
 import { IngestModal } from "./components/modals/IngestModal";
@@ -175,14 +174,14 @@ export default function App() {
   };
 
   // ── Start Ingest Pipeline via SSE ───────────────────────────────────────────
-  const handleStartIngest = async (csvPath?: string) => {
+  const handleStartIngest = async (csvPaths?: string[] | string) => {
     setIngestRunning(true);
     setIngestPct(0);
     try {
-      await api.startIngest(csvPath);
-      const es = api.eventsStream((pct) => {
-        setIngestPct(pct);
-        if (pct >= 100) {
+      await api.startIngest(csvPaths);
+      const es = api.eventsStream((evt) => {
+        setIngestPct(evt.pct);
+        if (evt.pct >= 100) {
           es.close();
           setIngestRunning(false);
           fetchTopRisk().then((risk) => {
@@ -378,19 +377,6 @@ export default function App() {
                   totalRiskCount={totalRiskCount}
                   onTraceAccount={handleTrace}
                   onRefreshTopRisk={fetchTopRisk}
-                  isReady={isReady}
-                />
-              }
-            />
-            <Route
-              path="/pipeline"
-              element={
-                <PipelineView
-                  status={status}
-                  ingestRunning={ingestRunning}
-                  ingestPct={ingestPct}
-                  onStartIngest={handleStartIngest}
-                  onTriggerRescore={handleTriggerRescore}
                   isReady={isReady}
                 />
               }

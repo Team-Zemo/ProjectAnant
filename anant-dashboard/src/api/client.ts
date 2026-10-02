@@ -9,12 +9,36 @@ export interface StatusResponse {
   ingest_running: boolean;
   ingest_pct: number;
   score_pct: number;
+  stage_num?: number;
+  stage?: string;
+  message?: string;
+  elapsed_ms?: number;
+  duck_time_ms?: number;
+  score_time_ms?: number;
+  syn_time_ms?: number;
+  graph_time_ms?: number;
   memgraph_ok: boolean;
   rows_loaded: number;
   unique_accounts: number;
   critical_mules?: number;
   syndicates_count?: number;
   error: string;
+}
+
+export interface IngestProgressEvent {
+  pct: number;
+  stage_num?: number;
+  total_stages?: number;
+  stage?: string;
+  message?: string;
+  elapsed_ms?: number;
+  duck_time_ms?: number;
+  score_time_ms?: number;
+  syn_time_ms?: number;
+  graph_time_ms?: number;
+  rows?: number;
+  accounts?: number;
+  running?: boolean;
 }
 
 export interface AccountStats {
@@ -166,10 +190,29 @@ export interface SyndicateParams {
   archetype?: string;
 }
 
+export interface UploadedFileResponse {
+  filename: string;
+  path: string;
+  size: number;
+}
+
+export interface UploadBatchResponse {
+  status: string;
+  files: UploadedFileResponse[];
+}
+
 async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
+  const isFormData = opts?.body instanceof FormData;
+  const headers: Record<string, string> = isFormData
+    ? {}
+    : { "Content-Type": "application/json" };
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...opts,
+    headers: {
+      ...headers,
+      ...(opts?.headers as Record<string, string> | undefined),
+    },
   });
   if (!res.ok) throw new Error(`API ${path} → ${res.status}`);
   return res.json() as Promise<T>;
@@ -178,18 +221,47 @@ async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
 export const api = {
   status: () => apiFetch<StatusResponse>("/api/status"),
 
-  startIngest: (csvPath?: string) =>
-    apiFetch<{ status: string }>("/api/ingest", {
+  uploadFiles: async (files: File[]): Promise<UploadBatchResponse> => {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("files", file);
+    }
+    return apiFetch<UploadBatchResponse>("/api/upload", {
       method: "POST",
-      body: JSON.stringify({ path: csvPath }),
+      body: formData,
+    });
+  },
+
+  startIngest: (csvPaths?: string[] | string) => {
+    let bodyPayload: any = {};
+    if (Array.isArray(csvPaths)) {
+      bodyPayload = { paths: csvPaths };
+    } else if (typeof csvPaths === "string" && csvPaths.trim()) {
+      bodyPayload = { path: csvPaths.trim() };
+    }
+    return apiFetch<{ status: string }>("/api/ingest", {
+      method: "POST",
+      body: JSON.stringify(bodyPayload),
+    });
+  },
+
+  deleteUploadedFile: (filenameOrPath: { filename?: string; path?: string }) =>
+    apiFetch<{ status: string; removed: boolean }>("/api/upload/delete", {
+      method: "POST",
+      body: JSON.stringify(filenameOrPath),
     }),
 
-  eventsStream: (onProgress: (pct: number, rows: number) => void) => {
+  resetDatabase: () =>
+    apiFetch<{ status: string; message: string }>("/api/reset", {
+      method: "POST",
+    }),
+
+  eventsStream: (onProgress: (event: IngestProgressEvent) => void) => {
     const es = new EventSource(`${BASE}/api/events`);
     es.onmessage = (e) => {
       try {
         const d = JSON.parse(e.data);
-        onProgress(d.pct ?? 0, d.rows ?? 0);
+        onProgress(d);
       } catch {}
     };
     return es;

@@ -15,7 +15,7 @@ import type {
   SyndicateParams,
 } from "../api/client";
 
-export type NavTabId = "overview" | "investigation" | "mules" | "syndicates" | "pipeline" | "system";
+export type NavTabId = "overview" | "investigation" | "mules" | "syndicates" | "system";
 
 export interface NavItem {
   id: NavTabId;

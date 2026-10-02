@@ -41,12 +41,27 @@ void DuckLoader::exec(const std::string& sql) {
     duckdb_destroy_result(&res);
 }
 
-uint64_t DuckLoader::load(const std::string& csv_path,
+uint64_t DuckLoader::load(const std::vector<std::string>& csv_paths,
                            std::function<void(int pct, uint64_t rows)> progress_cb)
 {
     auto t0 = std::chrono::steady_clock::now();
     stats_.pct.store(5);
     if (progress_cb) progress_cb(5, 0);
+
+    if (csv_paths.empty()) {
+        throw std::runtime_error("DuckLoader: No CSV paths provided for ingestion.");
+    }
+
+    std::string paths_sql = "[";
+    for (size_t i = 0; i < csv_paths.size(); ++i) {
+        if (i > 0) paths_sql += ", ";
+        paths_sql += "'" + csv_paths[i] + "'";
+    }
+    paths_sql += "]";
+
+    // Clean previous session tables if any
+    exec("DROP TABLE IF EXISTS accounts");
+    exec("DROP TABLE IF EXISTS txns");
 
     // ── Step 1: Raw ingest via parallel SIMD CSV reader ───────────────────────
     exec(R"SQL(
@@ -70,9 +85,10 @@ uint64_t DuckLoader::load(const std::string& csv_path,
              OR Narration LIKE '%EXCHANGE%')                            AS terminal_marker,
             (Device_Type = 'Web_Emulator' 
              OR Device_Type = 'Linux_Script')                           AS script_device
-        FROM read_csv_auto(')SQL" + csv_path + R"SQL(',
+        FROM read_csv_auto()SQL" + paths_sql + R"SQL(,
             parallel=true,
-            header=true
+            header=true,
+            union_by_name=true
         )
     )SQL");
 
@@ -86,9 +102,9 @@ uint64_t DuckLoader::load(const std::string& csv_path,
     if (progress_cb) progress_cb(40, stats_.rows_loaded.load());
 
     // ── Step 2: Indexes ───────────────────────────────────────────────────────
-    exec("CREATE INDEX idx_sender   ON txns(sender_account)");
-    exec("CREATE INDEX idx_receiver ON txns(receiver_account)");
-    exec("CREATE INDEX idx_ts       ON txns(ts_unix)");
+    exec("CREATE INDEX IF NOT EXISTS idx_sender   ON txns(sender_account)");
+    exec("CREATE INDEX IF NOT EXISTS idx_receiver ON txns(receiver_account)");
+    exec("CREATE INDEX IF NOT EXISTS idx_ts       ON txns(ts_unix)");
     if (progress_cb) progress_cb(60, stats_.rows_loaded.load());
 
     // ── Step 3: Account aggregate table ──────────────────────────────────────
@@ -149,7 +165,7 @@ uint64_t DuckLoader::load(const std::string& csv_path,
 
     // ── Step 4: Edge export view (for Memgraph LOAD CSV) ─────────────────────
     exec(R"SQL(
-        CREATE VIEW edges AS
+        CREATE OR REPLACE VIEW edges AS
         SELECT txn_id, sender_account, receiver_account,
                sender_bank, receiver_bank,
                amount, ts_unix, payment_mode,
