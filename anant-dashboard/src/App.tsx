@@ -1,13 +1,35 @@
-import React, { useState, useEffect, useRef } from "react";
-import { api, type StatusResponse, type GraphSnapshot, type RiskAccount, type AccountStats } from "./api/client";
-import TransactionGraph from "./components/TransactionGraph";
-import { Search, Shield, Zap, AlertTriangle, Activity, RefreshCw } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  api,
+  type StatusResponse,
+  type GraphSnapshot,
+  type RiskAccount,
+  type AccountStats,
+} from "./api/client";
+import { Navbar } from "./components/common/Navbar";
+import { Sidebar } from "./components/common/Sidebar";
+import { OverviewDashboard } from "./features/overview/OverviewDashboard";
+import { InvestigationView } from "./features/investigation/InvestigationView";
+import { MuleRegistryView } from "./features/mules/MuleRegistryView";
+import { PipelineView } from "./features/pipeline/PipelineView";
+import { SystemHealthView } from "./features/system/SystemHealthView";
+import { QuickTraceModal } from "./components/modals/QuickTraceModal";
+import { IngestModal } from "./components/modals/IngestModal";
+import type { NavTabId } from "./types";
 
 export default function App() {
+  // Navigation & UI state
+  const [activeTab, setActiveTab] = useState<NavTabId>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [quickTraceOpen, setQuickTraceOpen] = useState(false);
+  const [ingestModalOpen, setIngestModalOpen] = useState(false);
+
+  // Engine & telemetry state
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [ingestRunning, setIngestRunning] = useState(false);
   const [ingestPct, setIngestPct] = useState(0);
 
+  // Graph and investigation data state
   const [trailGraph, setTrailGraph] = useState<GraphSnapshot>({ nodes: [], edges: [] });
   const [topRisk, setTopRisk] = useState<RiskAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
@@ -19,76 +41,125 @@ export default function App() {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // ── Trace 4-Hop Money Trail ────────────────────────────────────────────────
-  const handleTrace = async (targetAccount?: string) => {
+  const handleTrace = useCallback(async (targetAccount?: string) => {
     const acct = (targetAccount || searchQuery).trim();
     if (!acct) return;
     setTraceRunning(true);
     setSelectedAccount(acct);
+    setSearchQuery(acct);
+
     try {
       const [result, detail] = await Promise.all([
         api.trace(acct),
-        api.account(acct)
+        api.account(acct),
       ]);
 
       if (result && result.nodes && result.nodes.length > 0) {
         setTrailGraph({ nodes: result.nodes, edges: result.edges || [] });
-        const ids = new Set<string>(result.nodes.map((n: any) => n.id || n["n.id"] || n["a.id"] || ""));
+        const ids = new Set<string>(
+          result.nodes.map((n: any) => n.id || n["n.id"] || n["a.id"] || "")
+        );
         setHighlightedNodes(ids);
       }
       setAccountDetail(detail);
     } catch (e) {
       console.error("Trace failed:", e);
+    } finally {
+      setTraceRunning(false);
     }
-    setTraceRunning(false);
+  }, [searchQuery]);
+
+  // ── 2-Hop Direct Ring Neighborhood ──────────────────────────────────────────
+  const handleRingTrace = useCallback(async (targetAccount: string) => {
+    const acct = targetAccount.trim();
+    if (!acct) return;
+    setTraceRunning(true);
+    setSelectedAccount(acct);
+    setSearchQuery(acct);
+
+    try {
+      const [ringData, detail] = await Promise.all([
+        api.ring(acct),
+        api.account(acct),
+      ]);
+
+      if (ringData && ringData.nodes) {
+        setTrailGraph({ nodes: ringData.nodes, edges: ringData.edges || [] });
+        const ids = new Set<string>(
+          ringData.nodes.map((n: any) => n.id || n["n.id"] || n["a.id"] || "")
+        );
+        setHighlightedNodes(ids);
+      }
+      setAccountDetail(detail);
+    } catch (e) {
+      console.error("Ring trace failed:", e);
+    } finally {
+      setTraceRunning(false);
+    }
+  }, []);
+
+  // ── Global High-Risk Cluster Snapshot ───────────────────────────────────────
+  const handleSnapshotTrace = useCallback(async () => {
+    setTraceRunning(true);
+    try {
+      const snap = await api.snapshot(300);
+      if (snap && snap.nodes) {
+        setTrailGraph(snap);
+        setHighlightedNodes(undefined);
+      }
+    } catch (e) {
+      console.error("Snapshot load failed:", e);
+    } finally {
+      setTraceRunning(false);
+    }
+  }, []);
+
+  // ── Node click → trace that account & update detail ─────────────────────────
+  const handleNodeClick = (nodeId: string) => {
+    setSelectedAccount(nodeId);
+    setSearchQuery(nodeId);
+    handleTrace(nodeId);
   };
 
-  // ── Poll system status & auto-trace top risk account on load ────────────────
-  useEffect(() => {
-    let mounted = true;
-    const fetchStatusAndData = async () => {
-      try {
-        const s = await api.status();
-        if (!mounted) return;
-        setStatus(s);
-        setIngestRunning(s.ingest_running);
-        if (s.ingest_pct > 0) setIngestPct(s.ingest_pct);
+  // ── Refresh Top Risk Accounts List ─────────────────────────────────────────
+  const fetchTopRisk = useCallback(async () => {
+    try {
+      const risk = await api.topRisk(50);
+      if (risk && risk.length > 0) {
+        setTopRisk(risk);
+        return risk;
+      }
+    } catch (err) {
+      console.warn("Could not fetch top risk accounts:", err);
+    }
+    return [];
+  }, []);
 
-        if (s.loaded && trailGraph.nodes.length === 0) {
-          const risk = await api.topRisk(50);
-          if (!mounted) return;
-          if (risk && risk.length > 0) {
-            setTopRisk(risk);
-            const targetAcct = selectedAccount || risk[0].account_id;
-            setSelectedAccount(targetAcct);
-            setSearchQuery(targetAcct);
-            handleTrace(targetAcct);
-          }
-        }
-      } catch {}
-    };
+  // ── Trigger On-Demand Mule Scorer Run ───────────────────────────────────────
+  const handleTriggerRescore = async () => {
+    try {
+      await fetch("/api/score/run", { method: "POST" });
+      setTimeout(() => {
+        fetchTopRisk();
+      }, 1500);
+    } catch (err) {
+      console.error("Rescore trigger error:", err);
+    }
+  };
 
-    fetchStatusAndData();
-    const id = setInterval(fetchStatusAndData, 2000);
-    return () => {
-      mounted = false;
-      clearInterval(id);
-    };
-  }, [trailGraph.nodes.length, selectedAccount]);
-
-  // ── Start Ingest Pipeline ───────────────────────────────────────────────────
-  const handleIngest = async () => {
+  // ── Start Ingest Pipeline via SSE ───────────────────────────────────────────
+  const handleStartIngest = async (csvPath?: string) => {
     setIngestRunning(true);
     setIngestPct(0);
     try {
-      await api.startIngest();
+      await api.startIngest(csvPath);
       const es = api.eventsStream((pct) => {
         setIngestPct(pct);
         if (pct >= 100) {
           es.close();
           setIngestRunning(false);
-          // Auto trace highest risk mule account
-          api.topRisk(50).then((risk) => {
-            setTopRisk(risk);
+          // Auto trace highest risk mule account on ingest finish
+          fetchTopRisk().then((risk) => {
             if (risk && risk.length > 0) {
               const topAcct = risk[0].account_id;
               setSelectedAccount(topAcct);
@@ -101,404 +172,182 @@ export default function App() {
       eventSourceRef.current = es;
     } catch (e) {
       setIngestRunning(false);
-      console.error(e);
+      console.error("Ingest pipeline failed:", e);
     }
   };
 
-  // ── Node click → trace that account & update detail ───────────────────────
-  const handleNodeClick = async (nodeId: string) => {
-    setSelectedAccount(nodeId);
-    setSearchQuery(nodeId);
-    handleTrace(nodeId);
-  };
+  // ── Poll engine status & auto-trace top risk account on load ────────────────
+  useEffect(() => {
+    let mounted = true;
+    const fetchStatusAndData = async () => {
+      try {
+        const s = await api.status();
+        if (!mounted) return;
+        setStatus(s);
+        setIngestRunning(s.ingest_running);
+        if (s.ingest_pct > 0) setIngestPct(s.ingest_pct);
 
-  const riskColor = (score: number) =>
-    score >= 70 ? "red" : score >= 40 ? "amber" : "green";
+        if (s.loaded && topRisk.length === 0) {
+          const risk = await api.topRisk(50);
+          if (!mounted) return;
+          if (risk && risk.length > 0) {
+            setTopRisk(risk);
+            if (trailGraph.nodes.length === 0) {
+              const targetAcct = selectedAccount || risk[0].account_id;
+              setSelectedAccount(targetAcct);
+              setSearchQuery(targetAcct);
+              handleTrace(targetAcct);
+            }
+          }
+        }
+      } catch {}
+    };
 
-  const formatINR = (n: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+    fetchStatusAndData();
+    const intervalId = setInterval(fetchStatusAndData, 2500);
+    return () => {
+      mounted = false;
+      clearInterval(intervalId);
+      if (eventSourceRef.current) eventSourceRef.current.close();
+    };
+  }, [trailGraph.nodes.length, selectedAccount, topRisk.length, handleTrace]);
+
+  // ── Keyboard shortcut: Ctrl+K / Cmd+K for Quick Trace Modal ────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setQuickTraceOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const isReady = status?.loaded ?? false;
 
   return (
-    <div className="app-layout">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-soft-orange selection:text-foreground">
+      {/* Top Navigation Bar */}
+      <Navbar
+        status={status}
+        ingestRunning={ingestRunning}
+        ingestPct={ingestPct}
+        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        onOpenIngest={() => setIngestModalOpen(true)}
+        onOpenQuickTrace={() => setQuickTraceOpen(true)}
+      />
 
-      {/* ── HEADER ──────────────────────────────────────────────────────────── */}
-      <header className="app-header">
-        <div className="app-logo">
-          <Shield size={20} />
-          Project Anant · Abhedya-Chakra
-        </div>
+      {/* Main Workspace Layout with Sidebar and Content Outlet */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Module Sidebar */}
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          topRiskCount={topRisk.length}
+          selectedAccount={selectedAccount}
+          onTraceAccount={(acct) => {
+            setActiveTab("investigation");
+            handleTrace(acct);
+          }}
+        />
 
-        <div style={{ fontSize: 12, color: "var(--text-muted)", borderLeft: "1px solid var(--border)", paddingLeft: 16 }}>
-          VoidHacks 8.0 · In-Memory AML Graph & Mule Detection
-        </div>
-
-        <div className="header-status">
-          <span className={`status-dot ${status?.memgraph_ok ? "" : "red"}`} />
-          Memgraph {status?.memgraph_ok ? "Connected" : "Offline"}
-
-          <span style={{ margin: "0 8px", color: "var(--border)" }}>|</span>
-
-          <span className={`status-dot ${isReady ? "" : ingestRunning ? "amber" : "red"}`} />
-          {isReady ? (
-            <>{status?.rows_loaded?.toLocaleString()} rows · {status?.unique_accounts?.toLocaleString()} accounts</>
-          ) : ingestRunning ? (
-            `Ingesting... ${ingestPct}%`
-          ) : (
-            "Not loaded"
-          )}
-
-          {!isReady && (
-            <button
-              className="btn btn-primary"
-              style={{ marginLeft: 12, padding: "5px 12px" }}
-              onClick={handleIngest}
-              disabled={ingestRunning}
-            >
-              <Zap size={12} />
-              {ingestRunning ? "Loading..." : "Load Dataset"}
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* ── SIDEBAR ─────────────────────────────────────────────────────────── */}
-      <aside className="sidebar">
-
-        {/* Search / Trace Box */}
-        <div className="card">
-          <div className="card-title"><Search size={12} /> Victim Account 4-Hop Trail</div>
-          <div className="search-wrap" style={{ marginBottom: 8 }}>
-            <Search size={14} className="search-icon" />
-            <input
-              className="search-input"
-              placeholder="e.g. KKBK10000000"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleTrace()}
+        {/* Content View Outlet */}
+        <main
+          className={`flex-1 lg:ml-64 p-4 lg:p-6 overflow-y-auto w-full transition-all ${
+            activeTab === "investigation" ? "max-w-none" : "max-w-7xl mx-auto"
+          }`}
+        >
+          {/* Active Module Switcher */}
+          {activeTab === "overview" && (
+            <OverviewDashboard
+              status={status}
+              topRisk={topRisk}
+              onTraceAccount={(acct) => {
+                setActiveTab("investigation");
+                handleTrace(acct);
+              }}
+              onNavigateTab={setActiveTab}
+              onOpenIngest={() => setIngestModalOpen(true)}
+              isReady={isReady}
             />
-          </div>
-          <button
-            className="btn btn-primary"
-            style={{ width: "100%" }}
-            onClick={() => handleTrace()}
-            disabled={traceRunning || !isReady}
-          >
-            <Activity size={12} />
-            {traceRunning ? "Tracing Money Trail..." : "Trace 4-Hop Trail"}
-          </button>
-        </div>
+          )}
 
-        {/* Ingest progress bar */}
-        {ingestRunning && (
-          <div className="card fade-in">
-            <div className="card-title"><RefreshCw size={12} /> Ingestion & Scoring</div>
-            <div className="progress-wrap">
-              <div className="progress-label">
-                <span>DuckDB + Memgraph</span>
-                <span>{ingestPct}%</span>
-              </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${ingestPct}%` }} />
-              </div>
-            </div>
-          </div>
-        )}
+          {activeTab === "investigation" && (
+            <InvestigationView
+              trailGraph={trailGraph}
+              selectedAccount={selectedAccount}
+              accountDetail={accountDetail}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              traceRunning={traceRunning}
+              onTrace={handleTrace}
+              onRingTrace={handleRingTrace}
+              onSnapshotTrace={handleSnapshotTrace}
+              onNodeClick={handleNodeClick}
+              highlightedNodes={highlightedNodes}
+              topRisk={topRisk}
+              isReady={isReady}
+              onCloseDetail={() => {
+                setAccountDetail(null);
+                setSelectedAccount(null);
+                setHighlightedNodes(undefined);
+              }}
+            />
+          )}
 
-        {/* High Risk Accounts List */}
-        <div className="card" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          <div className="card-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span><AlertTriangle size={12} /> High Risk Accounts</span>
-            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Score ≥ 50</span>
-          </div>
-          <div style={{ overflow: "auto", flex: 1 }}>
-            {topRisk.map(a => {
-              const score = Number(a.mule_score ?? 0);
-              const layer = Number(a.layer ?? 0);
-              const layerClass = layer === 1 ? "l1" : layer === 2 ? "l2" : layer === 3 ? "l3" : "clean";
-              const layerText = layer === 1 ? "L1" : layer === 2 ? "L2" : layer === 3 ? "L3" : "—";
+          {activeTab === "mules" && (
+            <MuleRegistryView
+              topRisk={topRisk}
+              onTraceAccount={(acct) => {
+                setActiveTab("investigation");
+                handleTrace(acct);
+              }}
+              onNavigateTab={setActiveTab}
+              onRefreshTopRisk={fetchTopRisk}
+              isReady={isReady}
+            />
+          )}
 
-              return (
-                <div
-                  key={a.account_id}
-                  className={`account-item ${selectedAccount === a.account_id ? "active" : ""}`}
-                  onClick={() => {
-                    setSelectedAccount(a.account_id);
-                    setSearchQuery(a.account_id);
-                    handleTrace(a.account_id);
-                  }}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px" }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
-                    <span className={`layer-badge ${layerClass}`} style={{ fontSize: 9, padding: "1px 5px" }}>
-                      {layerText}
-                    </span>
-                    <span className="account-id" style={{ fontSize: 11 }}>{a.account_id}</span>
-                  </div>
+          {activeTab === "pipeline" && (
+            <PipelineView
+              status={status}
+              ingestRunning={ingestRunning}
+              ingestPct={ingestPct}
+              onStartIngest={handleStartIngest}
+              onTriggerRescore={handleTriggerRescore}
+              isReady={isReady}
+            />
+          )}
 
-                  <span style={{
-                    fontSize: 12, fontFamily: "JetBrains Mono, monospace", fontWeight: 700,
-                    color: score >= 70 ? "var(--l1-color)" : score >= 40 ? "var(--l2-color)" : "var(--risk-low)"
-                  }}>
-                    {score.toFixed(1)}
-                  </span>
-                </div>
-              );
-            })}
-            {topRisk.length === 0 && (
-              <div style={{ color: "var(--text-muted)", fontSize: 12, textAlign: "center", padding: 20 }}>
-                {isReady ? "Calculating risk scores..." : "Click 'Load Dataset' to start"}
-              </div>
-            )}
-          </div>
-        </div>
-      </aside>
+          {activeTab === "system" && (
+            <SystemHealthView status={status} isReady={isReady} />
+          )}
+        </main>
+      </div>
 
-      {/* ── GRAPH VIEW ────────────────────────────────────────────────────────── */}
-      <main className="graph-area">
-        {/* Loading overlay */}
-        {ingestRunning && (
-          <div className="loading-overlay">
-            <div className="loading-spinner" />
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--accent-blue)" }}>
-                Processing 2,000,000 Transactions
-              </div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 8 }}>
-                DuckDB SIMD Ingest → Mule Risk Scoring → Memgraph MAGE
-              </div>
-              <div style={{ marginTop: 20, width: 280 }}>
-                <div className="progress-wrap">
-                  <div className="progress-label">
-                    <span>Progress</span><span>{ingestPct}%</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${ingestPct}%` }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Global Modals */}
+      <QuickTraceModal
+        isOpen={quickTraceOpen}
+        onClose={() => setQuickTraceOpen(false)}
+        onTrace={(acct) => {
+          setActiveTab("investigation");
+          handleTrace(acct);
+        }}
+        topRiskAccounts={topRisk}
+      />
 
-        {!ingestRunning && trailGraph.nodes.length === 0 && (
-          <div style={{
-            display: "flex", flexDirection: "column", alignItems: "center",
-            justifyContent: "center", height: "100%", gap: 16,
-            color: "var(--text-muted)"
-          }}>
-            <Shield size={64} strokeWidth={1} style={{ opacity: 0.3 }} />
-            <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-secondary)" }}>
-              No money trail loaded
-            </div>
-            <div style={{ fontSize: 13 }}>
-              Enter an account ID or click "Load Dataset" to trace money flow
-            </div>
-            {isReady && (
-              <button
-                className="btn btn-primary"
-                onClick={() => handleTrace(topRisk[0]?.account_id || searchQuery)}
-                style={{ marginTop: 12 }}
-              >
-                <Zap size={14} style={{ marginRight: 6 }} />
-                Trace Top Mule Account
-              </button>
-            )}
-          </div>
-        )}
-
-        {trailGraph.nodes.length > 0 && (
-          <TransactionGraph
-            nodes={trailGraph.nodes}
-            edges={trailGraph.edges}
-            onNodeClick={handleNodeClick}
-            highlightedNodes={highlightedNodes}
-            sourceAccount={selectedAccount}
-          />
-        )}
-
-        {/* Stats overlay */}
-        {trailGraph.nodes.length > 0 && (
-          <div style={{
-            position: "absolute", top: 12, right: 12,
-            background: "rgba(10,15,30,0.88)",
-            border: "1px solid rgba(56,139,253,0.25)",
-            borderRadius: 10, padding: "8px 16px",
-            display: "flex", alignItems: "center", gap: 16, backdropFilter: "blur(12px)",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-            zIndex: 10
-          }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Nodes</div>
-              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "JetBrains Mono", color: "var(--accent-blue)" }}>
-                {trailGraph.nodes.length.toLocaleString()}
-              </div>
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Edges</div>
-              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "JetBrains Mono", color: "var(--accent-cyan)" }}>
-                {trailGraph.edges.length.toLocaleString()}
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* ── RIGHT PANEL: MULE RISK INDEX & METRICS ──────────────────────────── */}
-      <aside className="right-panel">
-
-        {accountDetail ? (
-          <>
-            {/* Account Header */}
-            <div className="panel-section">
-              <div className="panel-section-title">
-                <span>Account Intelligence</span>
-                <button className="btn btn-ghost" style={{ padding: "2px 6px" }}
-                  onClick={() => { setAccountDetail(null); setSelectedAccount(null); setHighlightedNodes(undefined); }}>
-                  ✕
-                </button>
-              </div>
-              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 700, color: "var(--text-code)", wordBreak: "break-all", marginBottom: 8 }}>
-                {accountDetail.account_id}
-              </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <span className="layer-badge l1">{accountDetail.bank || "BANK"}</span>
-                {accountDetail.has_foreign_ip && <span className="layer-badge l3">Foreign IP (185.x / 194.x)</span>}
-                {accountDetail.has_terminal_marker && <span className="layer-badge l3">Crypto/P2P Terminal</span>}
-                {accountDetail.has_script_device && <span className="layer-badge l2">Emulator/Script</span>}
-              </div>
-            </div>
-
-            {/* Mule Risk Index Meter */}
-            <div className="panel-section">
-              <div className="panel-section-title" style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Mule Risk Index</span>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, textTransform: "uppercase",
-                  color: (accountDetail.mule_score ?? 0) >= 70 ? "var(--l1-color)" : (accountDetail.mule_score ?? 0) >= 40 ? "var(--l2-color)" : "var(--clean-color)"
-                }}>
-                  {(accountDetail.mule_score ?? 0) >= 70 ? "CRITICAL MULE" : (accountDetail.mule_score ?? 0) >= 40 ? "SUSPECT MULE" : "LOW RISK"}
-                </span>
-              </div>
-              <div className="risk-score-bar" style={{ marginBottom: 12 }}>
-                <div className={`risk-score-value ${riskColor(accountDetail.mule_score ?? 0)}`} style={{ fontSize: 28 }}>
-                  {(accountDetail.mule_score ?? 0).toFixed(1)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 10, color: "var(--text-muted)" }}>/ 100 Risk Score</div>
-                  <div className="progress-bar" style={{ marginTop: 6, height: 6 }}>
-                    <div className="progress-fill" style={{
-                      width: `${Math.min(100, Math.max(0, accountDetail.mule_score ?? 0))}%`,
-                      background: (accountDetail.mule_score ?? 0) >= 70
-                        ? "linear-gradient(90deg, #ff4444, #ff2200)"
-                        : (accountDetail.mule_score ?? 0) >= 40
-                        ? "linear-gradient(90deg, #ff9900, #ff5500)"
-                        : "linear-gradient(90deg, #388bfd, #00d4aa)"
-                    }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Risk Scoring Factors Breakdown */}
-              <div style={{ background: "var(--bg-elevated)", borderRadius: 8, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6, fontSize: 11 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Pass-Through Velocity:</span>
-                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                    {accountDetail.total_in > 0 ? `${((accountDetail.total_out / accountDetail.total_in) * 100).toFixed(1)}%` : "0%"}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)" }}>In-Degree (Collector):</span>
-                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                    {accountDetail.in_degree ? `${accountDetail.in_degree} distinct senders` : "—"}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Out-Degree (Distributor):</span>
-                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                    {accountDetail.out_degree ? `${accountDetail.out_degree} distinct receivers` : "—"}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Terminal Exit Marker:</span>
-                  <span style={{ fontWeight: 600, color: accountDetail.has_terminal_marker ? "var(--l3-color)" : "var(--text-muted)" }}>
-                    {accountDetail.has_terminal_marker ? "DETECTED" : "None"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Activity Summary */}
-            <div className="panel-section">
-              <div className="panel-section-title">Financial Flow</div>
-              <div className="stat-row">
-                <div className="stat-item">
-                  <div className="stat-label">Total Inflow</div>
-                  <div className="stat-value green">{formatINR(accountDetail.total_in)}</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-label">Total Outflow</div>
-                  <div className="stat-value red">{formatINR(accountDetail.total_out)}</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-label">Transactions</div>
-                  <div className="stat-value">{accountDetail.tx_count?.toLocaleString()}</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-label">Turnover Ratio</div>
-                  <div className="stat-value">
-                    {accountDetail.total_in > 0
-                      ? `${((accountDetail.total_out / accountDetail.total_in) * 100).toFixed(1)}%`
-                      : "—"}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Transaction Ledger */}
-            {accountDetail.transactions && accountDetail.transactions.length > 0 && (
-              <div className="panel-section" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                <div className="panel-section-title">Recent Transactions ({accountDetail.transactions.length})</div>
-                <div style={{ overflow: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                  {accountDetail.transactions.slice(0, 15).map((t: any) => {
-                    const isOut = t.sender_account === accountDetail.account_id;
-                    return (
-                      <div key={t.txn_id} style={{
-                        background: "var(--bg-elevated)", padding: "8px 10px", borderRadius: 6,
-                        display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11
-                      }}>
-                        <div>
-                          <div style={{ fontFamily: "JetBrains Mono", color: "var(--text-code)", fontSize: 10 }}>{t.txn_id}</div>
-                          <div style={{ color: "var(--text-muted)", fontSize: 9 }}>
-                            {isOut ? `→ ${t.receiver_account}` : `← ${t.sender_account}`} · {t.payment_mode}
-                          </div>
-                        </div>
-                        <div style={{
-                          fontFamily: "JetBrains Mono", fontWeight: 700,
-                          color: isOut ? "var(--l1-color)" : "var(--accent-cyan)"
-                        }}>
-                          {isOut ? "-" : "+"}{formatINR(t.amount)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
-            <Activity size={32} style={{ opacity: 0.3, margin: "0 auto 12px" }} />
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>
-              Select an Account
-            </div>
-            <div style={{ fontSize: 12, marginTop: 6 }}>
-              Click any node in the graph or select from the High Risk list to view Mule Risk breakdown
-            </div>
-          </div>
-        )}
-      </aside>
+      <IngestModal
+        isOpen={ingestModalOpen}
+        onClose={() => setIngestModalOpen(false)}
+        status={status}
+        ingestRunning={ingestRunning}
+        ingestPct={ingestPct}
+        onStartIngest={handleStartIngest}
+        onTriggerRescore={handleTriggerRescore}
+      />
     </div>
   );
 }
