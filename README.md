@@ -270,7 +270,7 @@ All legal document generation is **purely deterministic** — sourced only from 
 Two document types generated on-demand:
 
 **1. Section 91 CrPC / BNSS Bank Freeze Notice:**
-- MP Police insignia watermark (15% opacity)
+- MP Police insignia watermark (28% opacity)
 - Bilingual heading (English/Hindi)  
 - All suspect accounts with bank details, IFSCs, disputed amounts
 - Reference transaction IDs

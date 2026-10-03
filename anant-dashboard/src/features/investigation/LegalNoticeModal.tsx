@@ -395,7 +395,7 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
             </style>
           </head>
           <body style="position: relative;">
-            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140mm; height: 140mm; pointer-events: none; z-index: -1; opacity: 0.14; display: flex; align-items: center; justify-content: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140mm; height: 140mm; pointer-events: none; z-index: -1; opacity: 0.28; display: flex; align-items: center; justify-content: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
               <img src="${MP_POLICE_WATERMARK_DATA_URL}" style="width: 100%; height: auto;" alt="Watermark" />
             </div>
             <h1>FORENSIC EVIDENCE SCHEDULE TABLES</h1>
@@ -469,7 +469,7 @@ export const LegalNoticeModal: React.FC<LegalNoticeModalProps> = ({
             </style>
           </head>
           <body style="position: relative;">
-            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140mm; height: 140mm; pointer-events: none; z-index: -1; opacity: 0.14; display: flex; align-items: center; justify-content: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140mm; height: 140mm; pointer-events: none; z-index: -1; opacity: 0.28; display: flex; align-items: center; justify-content: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
               <img src="${MP_POLICE_WATERMARK_DATA_URL}" style="width: 100%; height: auto;" alt="Watermark" />
             </div>
             <div class="police-letterhead">

@@ -183,7 +183,7 @@ export const CASE_DIARY_LATEX_TEMPLATE_ENGLISH = `% Official Madhya Pradesh Poli
 % Official Madhya Pradesh Police Insignia Watermark
 \\AddToShipoutPictureBG{%
   \\begin{tikzpicture}[remember picture, overlay]
-    \\node[opacity=0.15] at (current page.center) {
+    \\node[opacity=0.28] at (current page.center) {
       \\includegraphics[width=125mm,keepaspectratio]{mp_police_watermark.png}
     };
   \\end{tikzpicture}%
@@ -333,7 +333,7 @@ export const CASE_DIARY_LATEX_TEMPLATE_HINDI = `% Official Madhya Pradesh Police
 % Official Madhya Pradesh Police Insignia Watermark
 \\AddToShipoutPictureBG{%
   \\begin{tikzpicture}[remember picture, overlay]
-    \\node[opacity=0.15] at (current page.center) {
+    \\node[opacity=0.28] at (current page.center) {
       \\includegraphics[width=125mm,keepaspectratio]{mp_police_watermark.png}
     };
   \\end{tikzpicture}%
@@ -488,7 +488,7 @@ export function generateCaseDiaryCourtHtml(
   const isHi = lang === "hi";
 
   const watermarkHtml = `
-    <div class="mp-police-watermark" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 135mm; height: 135mm; pointer-events: none; z-index: 0; opacity: 0.15; display: flex; align-items: center; justify-content: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+    <div class="mp-police-watermark" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 135mm; height: 135mm; pointer-events: none; z-index: 0; opacity: 0.28; display: flex; align-items: center; justify-content: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
       <img src="${MP_POLICE_WATERMARK_DATA_URL}" style="width: 100%; height: auto; object-fit: contain; pointer-events: none;" alt="Madhya Pradesh Police Official Seal" />
     </div>
   `;
