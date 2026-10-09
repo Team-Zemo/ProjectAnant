@@ -32,7 +32,7 @@
 ### 1. Ingest Dataset
 - **`POST /api/ingest`**
 - **Query / Body Parameters:**
-  - `path` *(optional)*: Absolute path to custom CSV file (defaults to `VoidHacks8_MuleAccount_2M_Transactions.csv`).
+  - `path` *(optional)*: Absolute path to custom CSV file (defaults to `MuleAccount_2M_Transactions.csv`).
 - **Response `200 OK`:**
   ```json
   {

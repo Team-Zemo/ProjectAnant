@@ -13,7 +13,7 @@ export default defineConfig({
 
   themeConfig: {
     siteTitle: 'Project Anant',
-    logo: '/mp_police_watermark.png',
+    logo: '/logo.svg',
 
     nav: [
       { text: 'Home', link: '/' },
@@ -80,7 +80,7 @@ export default defineConfig({
     },
 
     footer: {
-      message: 'Project Anant — VoidHacks 8.0 · Operation Abhedya-Chakra · MP Police Cyber Cell 1930',
+      message: 'Project Anant — Advanced Financial Forensics & High-Throughput AML Analytics',
       copyright: 'Copyright © 2026 Project Anant Team. Open-Source under MIT License.',
     },
   },

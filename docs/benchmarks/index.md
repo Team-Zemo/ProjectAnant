@@ -1,6 +1,6 @@
 # Performance Benchmarks & Forensic Evaluation
 
-> **Evaluation Dataset:** `VoidHacks8_MuleAccount_2M_Transactions.csv` (286.7 MB)  
+> **Evaluation Dataset:** High-Volume AML Banking Dataset (`MuleAccount_2M_Transactions.csv`, 286.7 MB)  
 > **Scale:** 2,000,000 Banking Transactions · 24,873 Unique Accounts · 15-Day Time Horizon  
 > **Test Environment:** Linux 6.13 x86_64 · 8 CPU Cores (AMD Ryzen / Intel Core) · 16 GB RAM
 
@@ -8,13 +8,13 @@
 
 ## Executive Benchmark Summary
 
-The VoidHacks 8.0 problem statement mandated that solutions must ingest, score, and analyze the 2,000,000 transaction dataset in **under 60 seconds**.
+The official system specification mandated that solutions must ingest, score, and analyze the 2,000,000 transaction dataset in **under 60 seconds**.
 
-Project Anant completes the full analytical pipeline in **~3.84 seconds**—outperforming the official requirement by **15.6×**.
+Project Anant completes the full analytical pipeline in **~3.84 seconds**—outperforming the baseline requirement by **15.6×**.
 
 ```
-HACKATHON REQUIREMENT:  [==================================================] 60.00s
-PROJECT ANANT TIME:     [===] 3.84s (15.6× Faster)
+BASELINE SPECIFICATION: [==================================================] 60.00s
+PROJECT ANANT EXECUTION: [===] 3.84s (15.6× Faster)
 ```
 
 ---

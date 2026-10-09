@@ -4,7 +4,11 @@
 > **"अनंत" — Infinite precision. Zero compromise.**
 >
 > A locally deployable, high-throughput AML analytics engine that detects money mule networks in Indian banking transaction data — faster, smarter, and more legally complete than any constraint demanded.
+>
+> 📖 **Full Interactive Technical Documentation & Mathematical Specifications:**  
+> **[https://team-zemo.github.io/ProjectAnant/](https://team-zemo.github.io/ProjectAnant/)**
 
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-brightgreen?style=flat-square&logo=vitepress)](https://team-zemo.github.io/ProjectAnant/)
 [![Build](https://img.shields.io/badge/build-C%2B%2B26-blue?style=flat-square&logo=cplusplus)](anant-engine/)
 [![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-61DAFB?style=flat-square&logo=react)](anant-dashboard/)
 [![Dataset](https://img.shields.io/badge/dataset-2%2C000%2C000%20rows-red?style=flat-square)](VoidHacks8_MuleAccount_2M_Transactions.csv)
@@ -12,6 +16,8 @@
 ---
 
 ## 📋 Table of Contents
+
+0. [📖 Interactive Documentation (GitHub Pages)](https://team-zemo.github.io/ProjectAnant/)
 
 1. [Problem Statement](#-problem-statement)
 2. [How We Crushed Every Constraint](#-how-we-crushed-every-constraint)

@@ -2,7 +2,7 @@
 
 > **Component:** `anant-dashboard/src/features/investigation/LegalNoticeModal.tsx`  
 > **Statutory Compliance:** Section 91 Cr.P.C. / Section 94 BNSS 2023 · Section 172 Cr.P.C. / Section 168 BNSS 2023  
-> **Insignia Watermark:** Official Madhya Pradesh Police Insignia (28% Opacity)
+> **Insignia Watermark:** Law Enforcement Agency Insignia (28% Opacity)
 
 ---
 
@@ -36,7 +36,7 @@ Project Anant generates two distinct types of court-ready legal documents on dem
 │ Document 2               │ Section 172 Cr.P.C. / Section 168 BNSS Case Diary     │
 │ Languages                │ Full Bilingual Support: English & Hindi (Devanagari)  │
 │ Output Formats           │ Professional XeLaTeX Source (.tex) & Pixel-Exact HTML │
-│ Official Watermark       │ Madhya Pradesh Police Official Seal (28% Opacity)     │
+│ Official Watermark       │ Agency Insignia Seal (28% Opacity)                    │
 │ Evidence Tables          │ Schedule A (Immediate Freeze) & B (Surveillance)      │
 └──────────────────────────┴───────────────────────────────────────────────────────┘
 ```
@@ -48,7 +48,7 @@ Project Anant generates two distinct types of court-ready legal documents on dem
 Issued by the Investigating Officer (IO) to bank branch managers and nodal cyber officers directing the immediate lien/freeze of identified mule accounts:
 
 ### Key Components:
-- **Formal Police Letterhead:** Indore Police Commissionerate, 1930 Cyber Cell.
+- **Formal Police Letterhead:** Cyber Crime Police Station / Financial Investigation Cell.
 - **Statutory Authority Citation:** Requisition under Section 91 Cr.P.C. / Section 94 Bharatiya Nagarik Suraksha Sanhita (BNSS), 2023.
 - **Disputed Fund Tracking:** Exact stolen amount, transaction IDs, timestamp, and victim complaint reference.
 - **Freeze Schedule A:** Table of identified Layer 3 & Layer 2 mule accounts with Bank Name, Account Number, IFSC, Calculated Mule Score, and Estimated Holding.
@@ -72,12 +72,12 @@ The official chronological diary maintained by the Investigating Officer recordi
 
 ---
 
-## Official MP Police Watermark (28% Opacity)
+## Official Agency Watermark (28% Opacity)
 
-All generated LaTeX source documents and HTML print previews embed the official Madhya Pradesh Police insignia:
+All generated LaTeX source documents and HTML print previews embed an authentic law enforcement agency insignia watermark:
 
 ```latex
-% Official Madhya Pradesh Police Insignia Watermark
+% Official Law Enforcement Insignia Watermark
 \AddToShipoutPictureBG{%
   \begin{tikzpicture}[remember picture, overlay]
     \node[opacity=0.28] at (current page.center) {
@@ -87,7 +87,7 @@ All generated LaTeX source documents and HTML print previews embed the official 
 }
 ```
 
-The opacity is calibrated to **28%**, ensuring the official state police seal is clearly visible and authoritative in court while preserving pristine text legibility.
+The opacity is calibrated to **28%**, ensuring the official state seal is clearly visible and authoritative in court while preserving pristine text legibility.
 
 ---
 

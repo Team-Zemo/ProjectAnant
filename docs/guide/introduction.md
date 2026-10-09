@@ -1,27 +1,26 @@
-# Executive Summary & Problem Statement
+# Executive Summary & Operational Scope
 
-> **Operation "Abhedya-Chakra"** · **VoidHacks 8.0**  
-> **Host Organization:** Indore Police Commissionerate & 1930 Cyber Crime Cell  
-> **Dataset Scale:** 2,000,000 Banking Transactions · 24,873 Accounts · 100% Offline Forensics
+> **Project Anant: Advanced Financial Forensics & Anti-Money Laundering Engine**  
+> **Scale:** 2,000,000 Banking Transactions · 24,873 Accounts · 100% Offline Forensics
 
 ---
 
 ## The Cybercrime Challenge
 
-Financial fraud in India—ranging from digital arrest impersonation, task-earning investment scams, FedEx parcel extortion, and fake loan apps—has evolved from isolated opportunistic theft into highly structured, industrial-scale money laundering syndicates.
+Financial fraud—ranging from digital arrest impersonation, task-earning investment scams, parcel extortion, and fake loan apps—has evolved from isolated opportunistic theft into highly structured, industrial-scale money laundering syndicates.
 
-When victims report unauthorized transactions to the National Cyber Crime Reporting Portal (NCRP / 1930 Helpline), cyber investigators face severe operational bottlenecks:
+When victims report unauthorized transactions, cyber investigators and financial intelligence units face severe operational bottlenecks:
 
 1. **Volume & Velocity:** Stolen funds are rapidly fragmented across hundreds of intermediary bank accounts within minutes (smurfing & layering) before being converted into irreversible crypto/P2P assets.
-2. **Analysis Bottlenecks:** Traditional AML and police investigation workflows rely on manual Excel spreadsheet lookups or sluggish relational SQL joins that take hours or days to trace money trails.
-3. **Black-Box AI Fragility:** Generic neural networks or opaque proprietary credit scores cannot withstand legal cross-examination under the Indian Evidence Act in a court of law.
+2. **Analysis Bottlenecks:** Traditional AML and investigation workflows rely on manual spreadsheet lookups or sluggish relational SQL joins that take hours or days to trace money trails.
+3. **Black-Box AI Fragility:** Generic neural networks or opaque proprietary credit scores cannot withstand legal cross-examination under criminal evidence standards in a court of law.
 4. **Wrongful Freezes on Citizens & Victims:** Heuristic filters frequently freeze accounts of innocent citizens or defrauded victims whose accounts were merely exfiltration endpoints.
 
 ---
 
-## The VoidHacks 8.0 Mandate
+## Operational Objectives & Requirements
 
-The hackathon problem statement mandated building a high-throughput, offline digital forensics platform with the following requirements:
+The digital forensics specification establishes the following core requirements:
 
 - **Ingestion & Scoring Throughput:** Must process a high-volume banking dataset of **2,000,000 transactions** in **under 60 seconds** on standard commodity hardware (16 GB RAM).
 - **Mule Account Identification:** Accurately identify mule accounts across transactional layers (Layer 1, Layer 2, Layer 3).

@@ -95,7 +95,7 @@ The system processes banking datasets through a five-stage pipeline:
   - Dynamic Ego-Ring isolation.
   - Live virtualized registry filtering 24,873 accounts in real-time.
   - Interactive 7-Signal Score Explainer Modal.
-  - Police Case Diary & Section 91 Notice generator with 28% MP Police watermark.
+  - Police Case Diary & Section 91 Notice generator with 28% agency watermark.
 
 ---
 
