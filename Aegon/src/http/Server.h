@@ -1,0 +1,309 @@
+#pragma once
+
+#include "http/Router.h"
+#include "http/ServiceRegistry.h"
+#include "http/ServerConfig.h"
+#include "http/tls/TlsContext.h"
+#include "http/v3/Http3Server.h"
+#include "core/EventLoop.h"
+#include "core/Task.h"
+#include <string>
+#include <string_view>
+#include <memory>
+#include <vector>
+#include <thread>
+#include <atomic>
+#include <optional>
+
+namespace aegon::http {
+
+namespace v2 {
+class Http2Connection;
+}
+
+namespace v3 {
+class Http3Server;
+}
+
+class Server {
+public:
+    Server();
+    explicit Server(Router router);
+    ~Server();
+
+    Server(Server&&) noexcept;
+    Server& operator=(Server&&) noexcept;
+    Server(const Server&) = delete;
+    Server& operator=(const Server&) = delete;
+
+    /**
+     * @brief Sets or updates the Router instance.
+     */
+    Server& set_router(Router router) {
+        router_ = std::move(router);
+        return *this;
+    }
+
+    [[nodiscard]] const Router& router() const noexcept { return router_; }
+    [[nodiscard]] Router& router() noexcept { return router_; }
+
+    /**
+     * @brief Registers a shared service (database client, redis, or custom domain service) in the ServiceRegistry.
+     */
+    template <typename T>
+    Server& provide(std::shared_ptr<T> service) {
+        services_->register_service<T>(std::move(service));
+        return *this;
+    }
+
+    /**
+     * @brief Registers a named shared service in the ServiceRegistry.
+     */
+    template <typename T>
+    Server& provide(std::string_view name, std::shared_ptr<T> service) {
+        services_->register_service<T>(name, std::move(service));
+        return *this;
+    }
+
+    /**
+     * @brief Instantiates and registers a service of type T in the ServiceRegistry.
+     */
+    template <typename T, typename... Args>
+        requires (!std::is_convertible_v<std::tuple_element_t<0, std::tuple<Args..., void>>, std::string_view>)
+    Server& provide(Args&&... args) {
+        services_->register_service<T>(std::make_shared<T>(std::forward<Args>(args)...));
+        return *this;
+    }
+
+    /**
+     * @brief Instantiates and registers a named service of type T in the ServiceRegistry.
+     */
+    template <typename T, typename... Args>
+    Server& provide_named(std::string_view name, Args&&... args) {
+        services_->register_service<T>(name, std::make_shared<T>(std::forward<Args>(args)...));
+        return *this;
+    }
+
+    /**
+     * @brief Freezes the ServiceRegistry, activating the zero-lock hot path for all handler lookups.
+     */
+    Server& freeze_services() {
+        services_->freeze();
+        return *this;
+    }
+
+    /**
+     * @brief Backward-compatible alias to register typed application state in ServiceRegistry.
+     */
+    template <typename T>
+    Server& set_state(std::shared_ptr<T> state) {
+        return provide<T>(std::move(state));
+    }
+
+    [[nodiscard]] ServiceRegistry& services() noexcept { return *services_; }
+    [[nodiscard]] const ServiceRegistry& services() const noexcept { return *services_; }
+
+    template <typename T>
+    [[nodiscard]] std::shared_ptr<T> service(std::string_view name = "") const {
+        return services_->get_shared<T>(name);
+    }
+
+    using LifecycleHook = std::function<core::Task<void>(Server&)>;
+    using BackgroundWorker = std::function<core::Task<void>(Server&, core::EventLoop&)>;
+
+    /**
+     * @brief Registers an asynchronous startup hook executed before accepting traffic.
+     * Ideal for schema migrations, seed data, cache pre-warming, health checks, and service announcements.
+     */
+    Server& on_start(LifecycleHook hook) {
+        startup_hooks_.push_back(std::move(hook));
+        return *this;
+    }
+
+    /**
+     * @brief Registers an asynchronous shutdown hook executed during server stop.
+     * Ideal for queue draining, cache flushing, and service deregistration.
+     */
+    Server& on_stop(LifecycleHook hook) {
+        shutdown_hooks_.push_back(std::move(hook));
+        return *this;
+    }
+
+    /**
+     * @brief Registers a long-running background worker coroutine spawned on the server event loop.
+     * Ideal for Redis stream consumers, event workers, and metrics collectors.
+     */
+    Server& spawn_worker(BackgroundWorker worker) {
+        background_workers_.push_back(std::move(worker));
+        return *this;
+    }
+
+    // Enable TLS (HTTPS) with ALPN (h2 and http/1.1)
+    Server& enable_tls(const std::string& cert_file = "", const std::string& key_file = "");
+
+    struct ListenerConfig {
+        uint16_t port{8080};
+        std::string host{"0.0.0.0"};
+        bool tls{false};
+    };
+
+    // Configure listen address and port (plaintext by default, or with explicit TLS setting)
+    Server& listen(uint16_t port, std::string_view host = "0.0.0.0", bool tls = false) {
+        if (port == 0) {
+            throw std::runtime_error("Server configuration error: port must be greater than 0 (1-65535)");
+        }
+        port_ = port;
+        host_ = std::string(host);
+        listeners_.push_back(ListenerConfig{port, std::string(host), tls});
+        return *this;
+    }
+
+    // Configure a dedicated TLS listen address and port
+    Server& listen_tls(uint16_t port, std::string_view host = "0.0.0.0") {
+        return listen(port, host, true);
+    }
+
+    // Full server configuration
+    Server& config(const ServerConfig& cfg) noexcept {
+        config_ = cfg;
+        return *this;
+    }
+    [[nodiscard]] const ServerConfig& config() const noexcept { return config_; }
+    [[nodiscard]] ServerConfig& config() noexcept { return config_; }
+
+    Server& ring_entries(uint32_t entries) noexcept {
+        config_.ring_entries = entries;
+        return *this;
+    }
+    [[nodiscard]] uint32_t ring_entries() const noexcept { return config_.ring_entries; }
+
+    Server& buffer_pool_entries(uint16_t entries) noexcept {
+        config_.buffer_pool_entries = entries;
+        return *this;
+    }
+    [[nodiscard]] uint16_t buffer_pool_entries() const noexcept { return config_.buffer_pool_entries; }
+
+    Server& buffer_size(uint32_t size) noexcept {
+        config_.buffer_size = size;
+        return *this;
+    }
+    [[nodiscard]] uint32_t buffer_size() const noexcept { return config_.buffer_size; }
+
+    // Enable/disable HTTP/3 over QUIC
+    Server& enable_http3(bool enable = true) noexcept {
+        config_.enable_http3 = enable;
+        return *this;
+    }
+    [[nodiscard]] bool is_http3_enabled() const noexcept { return config_.enable_http3; }
+
+    // Protocol Limits across H1, H2, and H3
+    Server& max_body_size(size_t bytes) noexcept { config_.limits.max_body_size = bytes; return *this; }
+    Server& max_headers_size(size_t bytes) noexcept { config_.limits.max_headers_size = bytes; return *this; }
+    Server& max_uri_length(size_t bytes) noexcept { config_.limits.max_uri_length = bytes; return *this; }
+    Server& limits(const ProtocolLimits& l) noexcept { config_.limits = l; return *this; }
+    [[nodiscard]] const ProtocolLimits& limits() const noexcept { return config_.limits; }
+
+    // TCP configuration
+    Server& tcp(const TcpConfig& tcp_cfg) noexcept {
+        config_.tcp = tcp_cfg;
+        return *this;
+    }
+    [[nodiscard]] const TcpConfig& tcp() const noexcept { return config_.tcp; }
+    Server& tcp_nodelay(bool enable = true) noexcept {
+        config_.tcp.nodelay = enable;
+        return *this;
+    }
+    Server& tcp_keepalive(bool enable, int idle = 60, int intvl = 10, int cnt = 3) noexcept {
+        config_.tcp.keepalive = enable;
+        config_.tcp.keepidle = idle;
+        config_.tcp.keepintvl = intvl;
+        config_.tcp.keepcnt = cnt;
+        return *this;
+    }
+
+    // HTTP/2 & HTTP/3 tuning
+    Server& h2_max_concurrent_streams(uint32_t n) noexcept {
+        config_.h2_max_concurrent_streams = n;
+        return *this;
+    }
+    Server& h2_initial_window_size(uint32_t n) noexcept {
+        config_.h2_initial_window_size = n;
+        return *this;
+    }
+    Server& rst_burst_limit(uint32_t n) noexcept {
+        config_.rst_burst_limit = n;
+        return *this;
+    }
+
+    // WebSocket configuration
+    Server& websocket(const WebSocketConfig& ws_cfg) noexcept {
+        config_.websocket = ws_cfg;
+        return *this;
+    }
+    [[nodiscard]] const WebSocketConfig& websocket_config() const noexcept { return config_.websocket; }
+    Server& ws_max_message_size(size_t bytes) noexcept {
+        config_.websocket.max_message_size = bytes;
+        return *this;
+    }
+    Server& ws_max_frame_size(size_t bytes) noexcept {
+        config_.websocket.max_frame_size = bytes;
+        return *this;
+    }
+    Server& ws_require_masked_frames(bool require) noexcept {
+        config_.websocket.require_masked_frames = require;
+        return *this;
+    }
+    Server& ws_auto_ping_interval(uint32_t seconds) noexcept {
+        config_.websocket.auto_ping_interval_sec = seconds;
+        return *this;
+    }
+
+    // Run single-threaded event loop
+    void run();
+
+    // Run thread-per-core shared-nothing event loop cluster
+    void run(size_t threads);
+
+    // Stop server
+    void stop();
+
+    [[nodiscard]] uint16_t port() const noexcept { return port_; }
+    [[nodiscard]] std::string_view host() const noexcept { return host_; }
+    [[nodiscard]] const std::vector<ListenerConfig>& listeners() const noexcept { return listeners_; }
+    [[nodiscard]] bool is_tls_enabled() const noexcept { return tls_enabled_; }
+
+private:
+    core::Task<void> handle_connection(core::EventLoop& loop, int client_fd);
+    core::Task<void> handle_http2_connection(core::EventLoop& loop, int client_fd, std::string initial_data,
+                                              std::optional<core::MultishotRecvStream> existing_stream = std::nullopt);
+    core::Task<void> handle_http2_upgrade(core::EventLoop& loop, int client_fd, Request req, std::string http2_settings,
+                                          std::string initial_data,
+                                          std::optional<core::MultishotRecvStream> existing_stream = std::nullopt);
+    core::Task<void> run_h2_loop(core::EventLoop& loop, int client_fd, v2::Http2Connection& h2,
+                                 std::string initial_data,
+                                 std::optional<core::MultishotRecvStream> existing_stream);
+    core::Task<void> handle_tls_connection(core::EventLoop& loop, int client_fd, uint16_t port);
+    core::Task<void> accept_loop(core::EventLoop& loop, int listen_fd, uint16_t port, bool is_tls);
+    int create_listen_socket(uint16_t port, const std::string& host);
+    void run_event_loop(const std::vector<ListenerConfig>& active_listeners,
+                        std::optional<int> cpu_core,
+                        bool spawn_background);
+
+    Router router_;
+    std::string host_{"0.0.0.0"};
+    uint16_t port_{8080};
+    std::vector<ListenerConfig> listeners_;
+    std::shared_ptr<ServiceRegistry> services_{std::make_shared<ServiceRegistry>()};
+    std::vector<LifecycleHook> startup_hooks_;
+    std::vector<LifecycleHook> shutdown_hooks_;
+    std::vector<BackgroundWorker> background_workers_;
+    std::atomic<bool> running_{false};
+    std::vector<std::thread> workers_;
+
+    ServerConfig config_{};
+    bool tls_enabled_{false};
+    std::unique_ptr<tls::TlsContext> tls_ctx_;
+    std::vector<std::unique_ptr<v3::Http3Server>> h3_servers_;
+};
+
+} // namespace aegon::http

@@ -1,0 +1,15 @@
+{
+  "name": "project-anant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Project Anant — High-Performance Mule Account Detection, Graph Analytics, and Aegon C++26 Engine",
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "markdown-it-mathjax3": "^4.3.2",
+    "vitepress": "^1.6.4"
+  }
+}
